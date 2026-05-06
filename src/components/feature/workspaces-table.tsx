@@ -92,8 +92,8 @@ export function WorkspacesTable({ initialWorkspaces }: Props) {
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          ⋯
+                        <Button variant="ghost" size="sm" aria-label={`Actions for ${w.name}`}>
+                          <span aria-hidden>⋯</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">

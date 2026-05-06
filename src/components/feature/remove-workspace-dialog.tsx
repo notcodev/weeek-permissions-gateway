@@ -50,7 +50,7 @@ export function RemoveWorkspaceDialog({ workspace, onClose, onRemoved }: Props) 
         <AlertDialogHeader>
           <AlertDialogTitle>Remove this workspace?</AlertDialogTitle>
           <AlertDialogDescription>
-            <span className="font-mono">{workspace?.name}</span> will be deleted along with its
+            <span className="font-medium">{workspace?.name}</span> will be deleted along with its
             encrypted master key. Sub-keys issued from it (when that lands) would be revoked. This
             cannot be undone.
           </AlertDialogDescription>
