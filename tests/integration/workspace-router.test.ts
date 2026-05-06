@@ -76,9 +76,9 @@ describe("workspace router", () => {
     const caller = await makeCaller();
     const key = "wk_dup_1234567890_abcd";
     await caller.workspace.import({ name: "First", masterKey: key });
-    await expect(
-      caller.workspace.import({ name: "Second", masterKey: key }),
-    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(caller.workspace.import({ name: "Second", masterKey: key })).rejects.toMatchObject(
+      { code: "CONFLICT" },
+    );
   });
 
   test("isolates workspaces by owner", async () => {
