@@ -123,7 +123,7 @@ export const workspaceRouter = router({
           });
         return toPublic(row);
       } catch (err) {
-        if (isUniqueViolation(err)) {
+        if (isUniqueViolationOnConstraint(err, FINGERPRINT_CONSTRAINT)) {
           throw new TRPCError({
             code: "CONFLICT",
             message: "This master key is already imported into your account.",
@@ -152,13 +152,17 @@ export const workspaceRouter = router({
   }),
 });
 
-function isUniqueViolation(err: unknown): boolean {
-  // postgres-js surfaces error.code === '23505' for unique_violation.
-  // Drizzle wraps it in DrizzleQueryError with the original on `.cause`, so
-  // walk a short chain to find it.
+const FINGERPRINT_CONSTRAINT = "weeek_workspace_owner_fingerprint_uq";
+
+function isUniqueViolationOnConstraint(err: unknown, constraint: string): boolean {
   let cur: unknown = err;
   for (let i = 0; i < 5 && cur; i++) {
-    if (typeof cur === "object" && cur !== null && (cur as { code?: string }).code === "23505") {
+    if (
+      typeof cur === "object" &&
+      cur !== null &&
+      (cur as { code?: string }).code === "23505" &&
+      (cur as { constraint_name?: string }).constraint_name === constraint
+    ) {
       return true;
     }
     cur = (cur as { cause?: unknown }).cause;
