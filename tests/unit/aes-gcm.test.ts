@@ -43,4 +43,10 @@ describe("aesGcm envelope", () => {
     flipped[0] = (flipped[0] ?? 0) ^ 0x01;
     await expect(decrypt({ ...env, tag: flipped })).rejects.toThrow();
   });
+
+  test("decrypt rejects an unsupported encVersion", async () => {
+    const { encrypt, decrypt } = await import("@/server/crypto/aesGcm");
+    const env = await encrypt("payload");
+    await expect(decrypt({ ...env, encVersion: 99 })).rejects.toThrow(/encVersion/);
+  });
 });

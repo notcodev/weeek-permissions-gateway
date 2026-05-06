@@ -11,9 +11,9 @@ export type Envelope = {
   encVersion: number;
 };
 
-let cachedKey: CryptoKey | undefined;
+let cachedKey: Promise<CryptoKey> | undefined;
 
-async function getKey(): Promise<CryptoKey> {
+function getKey(): Promise<CryptoKey> {
   if (cachedKey) return cachedKey;
   const b64 = process.env.MASTER_KEY_ENC_KEY;
   if (!b64) throw new Error("MASTER_KEY_ENC_KEY is required");
@@ -21,10 +21,7 @@ async function getKey(): Promise<CryptoKey> {
   if (raw.byteLength !== KEY_BYTES) {
     throw new Error(`MASTER_KEY_ENC_KEY must decode to ${KEY_BYTES} bytes (got ${raw.byteLength})`);
   }
-  cachedKey = await crypto.subtle.importKey("raw", raw, { name: ALG }, false, [
-    "encrypt",
-    "decrypt",
-  ]);
+  cachedKey = crypto.subtle.importKey("raw", raw, { name: ALG }, false, ["encrypt", "decrypt"]);
   return cachedKey;
 }
 
@@ -45,6 +42,15 @@ export async function encrypt(plaintext: string): Promise<Envelope> {
 export async function decrypt(env: Envelope): Promise<string> {
   if (env.encVersion !== ENC_VERSION) {
     throw new Error(`unsupported encVersion: ${env.encVersion}`);
+  }
+  if (env.iv.byteLength !== IV_BYTES) {
+    throw new Error(`iv must be ${IV_BYTES} bytes (got ${env.iv.byteLength})`);
+  }
+  if (env.tag.byteLength !== TAG_BYTES) {
+    throw new Error(`tag must be ${TAG_BYTES} bytes (got ${env.tag.byteLength})`);
+  }
+  if (env.ciphertext.byteLength === 0) {
+    throw new Error("ciphertext must not be empty");
   }
   const key = await getKey();
   const joined = new Uint8Array(new ArrayBuffer(env.ciphertext.byteLength + env.tag.byteLength));
