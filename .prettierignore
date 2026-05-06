@@ -3,3 +3,10 @@ node_modules
 coverage
 src/server/db/migrations
 pnpm-lock.yaml
+.agents
+.claude
+.mcp.json
+skills-lock.json
+docs
+PRODUCT.md
+DESIGN.md

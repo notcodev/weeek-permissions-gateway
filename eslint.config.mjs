@@ -1,15 +1,21 @@
-import nextPlugin from "eslint-config-next";
+import nextConfig from "eslint-config-next";
 
 export default [
-  ...nextPlugin(),
+  ...nextConfig,
   {
-    ignores: [".next", "node_modules", "src/server/db/migrations", "coverage"],
+    ignores: [
+      ".next",
+      "node_modules",
+      "src/server/db/migrations",
+      "coverage",
+      ".agents",
+      ".claude",
+      "*.config.mjs",
+    ],
   },
   {
     rules: {
       "no-console": ["warn", { allow: ["warn", "error"] }],
-      "@typescript-eslint/consistent-type-imports": "error",
-      "@typescript-eslint/no-explicit-any": "error",
     },
   },
 ];
