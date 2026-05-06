@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "genkey": "tsx scripts/genkey.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
