@@ -6,7 +6,7 @@
 
 **Architecture:** Single Next.js (App Router) process. Better Auth handles credentials and sessions, persisting to Postgres via Drizzle. tRPC sits behind the session for future admin operations. Postgres runs in Docker for dev. CI runs lint, typecheck, build, and an integration test that exercises the sign-up → sign-in path.
 
-**Tech Stack:** Next.js 15 (App Router, Node runtime), TypeScript (strict), pnpm, Drizzle ORM + PostgreSQL 16, Better Auth (email+password only this phase), tRPC v11 + TanStack Query + superjson, Tailwind v4 + shadcn/ui, Zod, pino, vitest + testcontainers, GitHub Actions.
+**Tech Stack:** Next.js 16 (App Router, Node runtime), TypeScript 6 (strict), pnpm, Drizzle ORM + PostgreSQL 16, Better Auth (email+password only this phase), tRPC v11 (stable) + TanStack Query v5 + superjson, Tailwind v4 + shadcn/ui (`tw-animate-css`), Zod v4, pino, vitest + testcontainers, ESLint 10 (flat config) + Prettier, GitHub Actions.
 
 **Spec reference:** `docs/superpowers/specs/2026-05-06-weeek-permissions-gateway-design.md` — implements §3 (auth surface partial: only email+password), §5 (stack), §6 (auth tables only), §8 (auth surface partial), §9 (tRPC bootstrap, no domain routers yet), §16 (repo layout — auth subset), §17 (env var subset).
 
@@ -27,7 +27,9 @@ postcss.config.mjs                        # Tailwind v4
 tailwind.config.ts                        # shadcn theme tokens
 components.json                           # shadcn registry config
 drizzle.config.ts                         # drizzle-kit config
-biome.json                                # lint + format
+eslint.config.mjs                         # ESLint 10 flat config
+.prettierrc.json                          # Prettier config
+.prettierignore                           # Prettier ignore patterns
 vitest.config.ts                          # test runner
 .env.example                              # env templates
 .gitignore                                # node, next, env
@@ -96,7 +98,9 @@ scripts/
 - Create: `next.config.mjs`
 - Create: `.gitignore`
 - Create: `.dockerignore`
-- Create: `biome.json`
+- Create: `eslint.config.mjs`
+- Create: `.prettierrc.json`
+- Create: `.prettierignore`
 - Create: `src/app/layout.tsx`
 - Create: `src/app/globals.css`
 - Create: `src/app/(marketing)/page.tsx`
@@ -123,8 +127,10 @@ Then **replace** the generated `package.json` with the version below.
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -133,43 +139,52 @@ Then **replace** the generated `package.json` with the version below.
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.59.0",
-    "@trpc/client": "11.0.0-rc.502",
-    "@trpc/react-query": "11.0.0-rc.502",
-    "@trpc/server": "11.0.0-rc.502",
-    "better-auth": "^1.0.0",
-    "class-variance-authority": "^0.7.0",
+    "@tanstack/react-query": "^5.100.9",
+    "@trpc/client": "^11.17.0",
+    "@trpc/react-query": "^11.17.0",
+    "@trpc/server": "^11.17.0",
+    "better-auth": "^1.6.9",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "drizzle-orm": "^0.36.0",
-    "lucide-react": "^0.460.0",
-    "next": "15.1.6",
-    "pino": "^9.5.0",
-    "pino-pretty": "^11.3.0",
-    "postgres": "^3.4.5",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "sonner": "^1.7.0",
-    "superjson": "^2.2.1",
-    "tailwind-merge": "^2.5.0",
-    "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.23.8"
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.14.0",
+    "next": "^16.2.4",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "postgres": "^3.4.9",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@tailwindcss/postcss": "^4.0.0",
-    "@types/node": "^22.10.0",
-    "@types/react": "19.0.0",
-    "@types/react-dom": "19.0.0",
-    "drizzle-kit": "^0.28.0",
-    "tailwindcss": "^4.0.0",
-    "testcontainers": "^10.13.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "@tailwindcss/postcss": "^4.2.4",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^10.3.0",
+    "eslint-config-next": "^16.2.4",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "tailwindcss": "^4.2.4",
+    "tw-animate-css": "^1.4.0",
+    "testcontainers": "^11.14.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
   },
   "packageManager": "pnpm@9.12.0"
 }
 ```
+
+Notes:
+- `tw-animate-css` replaces `tailwindcss-animate` (Tailwind v4 standard).
+- `lucide-react` is at v1.x as of May 2026 — confirm `npm view lucide-react version` matches before pinning.
+- ESLint flat config (`eslint.config.mjs`) replaces Biome.
+- Zod 4: major rewrite from v3. If a dep (Better Auth, drizzle-zod) errors on `peerDependencies` with Zod 4, downgrade to `^3.25.0` for that package only and report DONE_WITH_CONCERNS.
 
 - [ ] **Step 3: Write `tsconfig.json`**
 
@@ -208,9 +223,6 @@ Then **replace** the generated `package.json` with the version below.
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
-  experimental: {
-    typedRoutes: true,
-  },
 };
 
 export default nextConfig;
@@ -248,24 +260,52 @@ docs
 .github
 ```
 
-- [ ] **Step 7: Write `biome.json`**
+- [ ] **Step 7: Write `eslint.config.mjs`** (flat config — Next 16 + ESLint 10 default)
+
+```js
+import nextPlugin from "eslint-config-next";
+
+export default [
+  ...nextPlugin(),
+  {
+    ignores: [".next", "node_modules", "src/server/db/migrations", "coverage"],
+  },
+  {
+    rules: {
+      "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
+];
+```
+
+> If `eslint-config-next` v16 exposes a different default-export shape (e.g.,
+> `next/core-web-vitals` named import), follow what `pnpm dlx eslint --inspect-config`
+> reports rather than guessing. Adjust the import line and report
+> DONE_WITH_CONCERNS if you had to deviate from the snippet above.
+
+- [ ] **Step 7a: Write `.prettierrc.json`**
 
 ```json
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "ignoreUnknown": true, "ignore": [".next", "src/server/db/migrations"] },
-  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "style": { "useImportType": "error" },
-      "suspicious": { "noExplicitAny": "error" }
-    }
-  },
-  "javascript": { "formatter": { "quoteStyle": "double", "semicolons": "always" } }
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "printWidth": 100,
+  "tabWidth": 2,
+  "plugins": ["prettier-plugin-tailwindcss"]
 }
+```
+
+- [ ] **Step 7b: Write `.prettierignore`**
+
+```
+.next
+node_modules
+coverage
+src/server/db/migrations
+pnpm-lock.yaml
 ```
 
 - [ ] **Step 8: Write `src/app/globals.css`** (plain CSS only — Tailwind directives land in Task 2)
@@ -329,7 +369,7 @@ Expected: build succeeds, `.next` directory created, no type errors.
 
 ```bash
 git add .
-git commit -m "phase-1 task 1: project bootstrap (next.js + ts + biome + tailwind)"
+git commit -m "phase-1 task 1: project bootstrap (next.js 16 + ts 6 + eslint + prettier)"
 ```
 
 ---
@@ -1520,7 +1560,8 @@ Open http://localhost:3000.
 | `pnpm build`      | Production build                       |
 | `pnpm test`       | Run integration tests (testcontainers) |
 | `pnpm typecheck`  | TypeScript --noEmit                    |
-| `pnpm lint`       | Biome check                            |
+| `pnpm lint`       | ESLint                                 |
+| `pnpm format`     | Prettier check                         |
 | `pnpm db:generate`| Generate drizzle migrations            |
 | `pnpm db:migrate` | Apply migrations to `$DATABASE_URL`    |
 ````
@@ -1562,6 +1603,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm format
       - run: pnpm typecheck
       - run: pnpm build
 
@@ -1585,6 +1627,7 @@ jobs:
 ```bash
 pnpm install --frozen-lockfile
 pnpm lint
+pnpm format
 pnpm typecheck
 pnpm build
 pnpm test
@@ -1606,7 +1649,7 @@ git commit -m "phase-1 task 14: github actions ci (lint, typecheck, build, tests
 - A new user can sign up at `/sign-up`, sign in at `/sign-in`, see
   `/dashboard` with their email, and sign out — all backed by Better Auth +
   Postgres.
-- `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm test` all pass locally and
+- `pnpm typecheck`, `pnpm lint`, `pnpm format`, `pnpm build`, `pnpm test` all pass locally and
   on CI for `main` and PRs.
 - `/api/healthz` and `/api/readyz` return correct status, with `readyz`
   failing if the DB is unreachable.
