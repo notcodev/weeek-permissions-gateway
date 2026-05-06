@@ -1,17 +1,18 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, beforeAll } from "vitest";
+import { randomBytes } from "node:crypto";
 
-describe("fingerprint", () => {
-  test("returns 32 bytes of sha256(rawKey)", async () => {
+describe("fingerprint (HMAC-SHA256, keyed)", () => {
+  beforeAll(() => {
+    process.env.FINGERPRINT_HMAC_PEPPER = randomBytes(32).toString("base64");
+  });
+
+  test("returns 32 bytes", async () => {
     const { fingerprint } = await import("@/server/crypto/fingerprint");
     const fp = fingerprint("hello");
     expect(fp.byteLength).toBe(32);
-    // sha256("hello") = 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
-    expect(Buffer.from(fp).toString("hex")).toBe(
-      "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-    );
   });
 
-  test("is deterministic", async () => {
+  test("is deterministic for the same input + same pepper", async () => {
     const { fingerprint } = await import("@/server/crypto/fingerprint");
     const a = fingerprint("token");
     const b = fingerprint("token");
@@ -25,9 +26,46 @@ describe("fingerprint", () => {
     expect(Buffer.from(a).equals(Buffer.from(b))).toBe(false);
   });
 
+  test("differs when the pepper differs (defeats offline dictionary)", async () => {
+    const original = process.env.FINGERPRINT_HMAC_PEPPER;
+    try {
+      const mod = await import("@/server/crypto/fingerprint");
+      const a = mod.fingerprint("token");
+      // Force a re-import with a different pepper. We rely on the
+      // implementation reading `process.env` lazily on each call.
+      process.env.FINGERPRINT_HMAC_PEPPER = randomBytes(32).toString("base64");
+      const b = mod.fingerprint("token");
+      expect(Buffer.from(a).equals(Buffer.from(b))).toBe(false);
+    } finally {
+      process.env.FINGERPRINT_HMAC_PEPPER = original;
+    }
+  });
+
+  test("throws if FINGERPRINT_HMAC_PEPPER is missing", async () => {
+    const original = process.env.FINGERPRINT_HMAC_PEPPER;
+    delete process.env.FINGERPRINT_HMAC_PEPPER;
+    try {
+      const { fingerprint } = await import("@/server/crypto/fingerprint");
+      expect(() => fingerprint("token")).toThrow(/FINGERPRINT_HMAC_PEPPER/);
+    } finally {
+      process.env.FINGERPRINT_HMAC_PEPPER = original;
+    }
+  });
+
+  test("throws if FINGERPRINT_HMAC_PEPPER decodes to wrong byte length", async () => {
+    const original = process.env.FINGERPRINT_HMAC_PEPPER;
+    process.env.FINGERPRINT_HMAC_PEPPER = Buffer.alloc(16, 0).toString("base64");
+    try {
+      const { fingerprint } = await import("@/server/crypto/fingerprint");
+      expect(() => fingerprint("token")).toThrow(/32 bytes/);
+    } finally {
+      process.env.FINGERPRINT_HMAC_PEPPER = original;
+    }
+  });
+
   test("last4 returns the last 4 visible chars of the raw key", async () => {
     const { last4 } = await import("@/server/crypto/fingerprint");
     expect(last4("abcdef1234")).toBe("1234");
-    expect(last4("xy")).toBe("xy"); // shorter than 4 — return verbatim
+    expect(last4("xy")).toBe("xy");
   });
 });

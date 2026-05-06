@@ -8,6 +8,7 @@ const server = setupServer();
 
 beforeAll(() => {
   process.env.MASTER_KEY_ENC_KEY ||= randomBytes(32).toString("base64");
+  process.env.FINGERPRINT_HMAC_PEPPER ||= randomBytes(32).toString("base64");
   process.env.WEEEK_API_BASE = WEEEK_BASE;
   server.listen({ onUnhandledRequest: "error" });
 });
