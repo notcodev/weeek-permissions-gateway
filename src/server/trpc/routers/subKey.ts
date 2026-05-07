@@ -7,6 +7,7 @@ import { subKey } from "@/server/db/schema/subKey";
 import { weeekWorkspace } from "@/server/db/schema/workspace";
 import { generateRawSubKey, hashSubKey, RAW_KEY_PREFIX, subKeyLast4 } from "@/server/crypto/subKey";
 import { expandPreset, PRESET_KEYS } from "@/server/verbs";
+import { assertWriteRole, resolveOwnerContext, type OwnerContext } from "../ownerContext";
 import { protectedProcedure, router } from "../init";
 
 const presetEnum = z.enum(PRESET_KEYS);
@@ -75,15 +76,18 @@ function toPublic(row: typeof subKey.$inferSelect): SubKeyPublic {
   };
 }
 
-async function findOwnedWorkspaceId(workspaceId: string, userId: string): Promise<string | null> {
+async function findOwnedWorkspaceId(
+  workspaceId: string,
+  owner: OwnerContext,
+): Promise<string | null> {
   const [row] = await db
     .select({ id: weeekWorkspace.id })
     .from(weeekWorkspace)
     .where(
       and(
         eq(weeekWorkspace.id, workspaceId),
-        eq(weeekWorkspace.ownerType, "user"),
-        eq(weeekWorkspace.ownerId, userId),
+        eq(weeekWorkspace.ownerType, owner.ownerType),
+        eq(weeekWorkspace.ownerId, owner.ownerId),
       ),
     )
     .limit(1);
@@ -94,7 +98,8 @@ export const subKeyRouter = router({
   listForWorkspace: protectedProcedure
     .input(listInput)
     .query(async ({ ctx, input }): Promise<SubKeyPublic[]> => {
-      const owned = await findOwnedWorkspaceId(input.workspaceId, ctx.session.user.id);
+      const owner = await resolveOwnerContext(ctx.session);
+      const owned = await findOwnedWorkspaceId(input.workspaceId, owner);
       if (!owned) throw new TRPCError({ code: "NOT_FOUND", message: "Workspace not found" });
 
       const rows = await db
@@ -108,7 +113,9 @@ export const subKeyRouter = router({
   create: protectedProcedure
     .input(createInput)
     .mutation(async ({ ctx, input }): Promise<{ subKey: SubKeyPublic; rawKey: string }> => {
-      const owned = await findOwnedWorkspaceId(input.workspaceId, ctx.session.user.id);
+      const owner = await resolveOwnerContext(ctx.session);
+      assertWriteRole(owner, "Issuing a sub-key");
+      const owned = await findOwnedWorkspaceId(input.workspaceId, owner);
       if (!owned) throw new TRPCError({ code: "NOT_FOUND", message: "Workspace not found" });
 
       const rawKey = generateRawSubKey();
@@ -146,6 +153,8 @@ export const subKeyRouter = router({
     }),
 
   revoke: protectedProcedure.input(revokeInput).mutation(async ({ ctx, input }) => {
+    const owner = await resolveOwnerContext(ctx.session);
+    assertWriteRole(owner, "Revoking a sub-key");
     const result = await db
       .update(subKey)
       .set({
@@ -164,8 +173,8 @@ export const subKeyRouter = router({
               .from(weeekWorkspace)
               .where(
                 and(
-                  eq(weeekWorkspace.ownerType, "user"),
-                  eq(weeekWorkspace.ownerId, ctx.session.user.id),
+                  eq(weeekWorkspace.ownerType, owner.ownerType),
+                  eq(weeekWorkspace.ownerId, owner.ownerId),
                 ),
               ),
           ),
@@ -185,8 +194,8 @@ export const subKeyRouter = router({
       .where(
         and(
           eq(subKey.id, input.id),
-          eq(weeekWorkspace.ownerType, "user"),
-          eq(weeekWorkspace.ownerId, ctx.session.user.id),
+          eq(weeekWorkspace.ownerType, owner.ownerType),
+          eq(weeekWorkspace.ownerId, owner.ownerId),
         ),
       )
       .limit(1);
@@ -196,6 +205,7 @@ export const subKeyRouter = router({
   }),
 
   get: protectedProcedure.input(getInput).query(async ({ ctx, input }): Promise<SubKeyPublic> => {
+    const owner = await resolveOwnerContext(ctx.session);
     const [row] = await db
       .select()
       .from(subKey)
@@ -209,8 +219,8 @@ export const subKeyRouter = router({
               .from(weeekWorkspace)
               .where(
                 and(
-                  eq(weeekWorkspace.ownerType, "user"),
-                  eq(weeekWorkspace.ownerId, ctx.session.user.id),
+                  eq(weeekWorkspace.ownerType, owner.ownerType),
+                  eq(weeekWorkspace.ownerId, owner.ownerId),
                 ),
               ),
           ),
