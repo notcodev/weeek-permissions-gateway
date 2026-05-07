@@ -289,4 +289,40 @@ describe("subKey router", () => {
       }),
     ).rejects.toThrow();
   });
+
+  test("create with binding fields persists boundWeeekUserId/Name + flags", async () => {
+    const uid = `sk-user-${Date.now()}-bind`;
+    await seedUser(uid, `${uid}@example.com`);
+    const wsId = await seedWorkspaceForUser(uid, "WS bind");
+    const caller = await makeCaller(uid);
+    const created = await caller.subKey.create({
+      workspaceId: wsId,
+      label: "bound",
+      preset: "task-automator",
+      boundWeeekUserId: "u-42",
+      boundWeeekUserName: "Alice",
+      visibilityBound: true,
+      authorRewrite: true,
+    });
+    expect(created.subKey.boundWeeekUserId).toBe("u-42");
+    expect(created.subKey.boundWeeekUserName).toBe("Alice");
+    expect(created.subKey.visibilityBound).toBe(true);
+    expect(created.subKey.authorRewrite).toBe(true);
+  });
+
+  test("create defaults binding fields to null/false when omitted", async () => {
+    const uid = `sk-user-${Date.now()}-bind-default`;
+    await seedUser(uid, `${uid}@example.com`);
+    const wsId = await seedWorkspaceForUser(uid, "WS bind default");
+    const caller = await makeCaller(uid);
+    const created = await caller.subKey.create({
+      workspaceId: wsId,
+      label: "no bind",
+      preset: "read-only",
+    });
+    expect(created.subKey.boundWeeekUserId).toBeNull();
+    expect(created.subKey.boundWeeekUserName).toBeNull();
+    expect(created.subKey.visibilityBound).toBe(false);
+    expect(created.subKey.authorRewrite).toBe(false);
+  });
 });

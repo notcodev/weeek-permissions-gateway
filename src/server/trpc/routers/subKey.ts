@@ -21,6 +21,10 @@ const createInput = z.object({
   preset: presetEnum,
   scopeProjects: scopeArrayInput.optional(),
   scopeBoards: scopeArrayInput.optional(),
+  boundWeeekUserId: z.string().min(1).nullable().optional(),
+  boundWeeekUserName: z.string().min(1).max(120).nullable().optional(),
+  visibilityBound: z.boolean().optional(),
+  authorRewrite: z.boolean().optional(),
 });
 const revokeInput = z.object({ id: z.string().min(1) });
 const getInput = z.object({ id: z.string().min(1) });
@@ -128,6 +132,10 @@ export const subKeyRouter = router({
           status: "active",
           scopeProjects: input.scopeProjects ?? ["*"],
           scopeBoards: input.scopeBoards ?? ["*"],
+          boundWeeekUserId: input.boundWeeekUserId ?? null,
+          boundWeeekUserName: input.boundWeeekUserName ?? null,
+          visibilityBound: input.visibilityBound ?? false,
+          authorRewrite: input.authorRewrite ?? false,
           verbs,
           createdAt: now,
         })
