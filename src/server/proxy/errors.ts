@@ -6,6 +6,8 @@ export type ErrorEnvelopeInput = {
   message: string;
   subKeyId?: string;
   requestId: string;
+  /** Seconds until the rate-limit window expires; emitted as `Retry-After`. */
+  retryAfterSec?: number;
 };
 
 export function errorResponse(input: ErrorEnvelopeInput): Response {
@@ -17,8 +19,12 @@ export function errorResponse(input: ErrorEnvelopeInput): Response {
       requestId: input.requestId,
     },
   };
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (typeof input.retryAfterSec === "number" && input.retryAfterSec > 0) {
+    headers["retry-after"] = String(input.retryAfterSec);
+  }
   return new Response(JSON.stringify(body), {
     status: input.status,
-    headers: { "content-type": "application/json" },
+    headers,
   });
 }

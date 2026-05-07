@@ -1,10 +1,17 @@
+import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { logger } from "@/server/logger";
 import { authenticateBearer } from "./auth";
-import { recordAudit, recordUsage } from "./audit";
+import { hashClientIp, recordAudit, recordUsage } from "./audit";
 import { errorResponse } from "./errors";
 import { forward } from "./forward";
 import { evaluate } from "./policyEval";
+import {
+  RATE_LIMITS,
+  checkAndIncrement,
+  ipBucketKey,
+  subKeyBucketKey,
+} from "./rateLimit";
 import { applyVisibilityFilter, rewriteAuthor } from "./rewrites";
 import { matchRoute } from "./routeTable";
 import type { AuthedRequest } from "./types";
@@ -56,6 +63,29 @@ export async function proxy(req: Request): Promise<Response> {
     });
   }
 
+  // 0. Coarse rate limit on client IP. Pre-auth so a flood of bad bearers
+  // can't burn through the auth lookup. Skip when no x-forwarded-for header
+  // (typically only in unit tests; production runs behind Caddy which always
+  // sets the header).
+  const ipHashBytes = hashClientIp(forwardedFor);
+  if (ipHashBytes) {
+    const ipKey = ipBucketKey(Buffer.from(ipHashBytes).toString("hex"));
+    const ipCheck = await checkAndIncrement(ipKey, RATE_LIMITS.perIpPerMinute);
+    if (!ipCheck.allowed) {
+      log.info(
+        { ourStatus: 429, denyReason: "rate_limited", scope: "ip", count: ipCheck.count },
+        "proxy denied",
+      );
+      return errorResponse({
+        code: "rate_limited",
+        status: 429,
+        message: "Too many requests from this client IP; slow down.",
+        requestId,
+        retryAfterSec: ipCheck.retryAfterSec,
+      });
+    }
+  }
+
   // 1. Auth — pre-auth denies have no workspace context, so they only land
   // in pino logs (the per-workspace audit_log can't reference them).
   const auth = await authenticateBearer(req);
@@ -69,6 +99,41 @@ export async function proxy(req: Request): Promise<Response> {
     });
   }
   const authed: AuthedRequest = auth.authed;
+
+  // 1b. Sub-key rate limit. Higher ceiling than the IP cap so a single sub-key
+  // running tens of background jobs from one host doesn't get throttled by the
+  // IP rule first.
+  const subKeyCheck = await checkAndIncrement(
+    subKeyBucketKey(authed.subKeyId),
+    RATE_LIMITS.perSubKeyPerMinute,
+  );
+  if (!subKeyCheck.allowed) {
+    log.info(
+      {
+        ourStatus: 429,
+        denyReason: "rate_limited",
+        scope: "subkey",
+        subKeyId: authed.subKeyShortId,
+        count: subKeyCheck.count,
+      },
+      "proxy denied",
+    );
+    const res = errorResponse({
+      code: "rate_limited",
+      status: 429,
+      message: "This sub-key has exceeded its per-minute limit.",
+      subKeyId: authed.subKeyShortId,
+      requestId,
+      retryAfterSec: subKeyCheck.retryAfterSec,
+    });
+    fireAudit(
+      { workspaceId: authed.workspaceId, subKeyId: authed.subKeyId, verb: null },
+      res,
+      "n/a",
+      "rate_limited",
+    );
+    return res;
+  }
 
   // 2. Route resolution
   const match = matchRoute(method, proxiedPath, url.searchParams);
