@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 describe("verbs", () => {
-  test("VERB_CATALOG matches spec §7.1 exactly", async () => {
+  test("VERB_CATALOG matches the Weeek public API surface (comments dropped — not exposed)", async () => {
     const { VERB_CATALOG } = await import("@/server/verbs");
     expect([...VERB_CATALOG].sort()).toEqual(
       [
@@ -16,9 +16,6 @@ describe("verbs", () => {
         "tasks:delete",
         "tasks:complete",
         "tasks:move",
-        "comments:read",
-        "comments:write",
-        "comments:delete",
         "members:read",
         "custom_fields:read",
         "custom_fields:write",
@@ -50,14 +47,11 @@ describe("verbs", () => {
     }
   });
 
-  test("task-automator preset includes write but no delete on tasks/comments", async () => {
+  test("task-automator preset includes tasks:write but no tasks:delete; can complete + move", async () => {
     const { VERB_PRESETS } = await import("@/server/verbs");
     const verbs = new Set(VERB_PRESETS["task-automator"]);
     expect(verbs.has("tasks:write")).toBe(true);
-    expect(verbs.has("comments:write")).toBe(true);
     expect(verbs.has("tasks:delete")).toBe(false);
-    expect(verbs.has("comments:delete")).toBe(false);
-    // can complete and move tasks
     expect(verbs.has("tasks:complete")).toBe(true);
     expect(verbs.has("tasks:move")).toBe(true);
   });
