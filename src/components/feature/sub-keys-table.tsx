@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,11 +61,16 @@ export function SubKeysTable({ workspaceId, workspaceName, initialSubKeys }: Pro
           <h1 className="text-2xl font-semibold">{workspaceName}</h1>
           <p className="text-muted-foreground text-sm">Sub-keys issued from this workspace.</p>
         </div>
-        <IssueSubKeyDialog
-          workspaceId={workspaceId}
-          onIssued={(k) => setKeys((curr) => [k, ...curr])}
-          trigger={<Button>Issue sub-key</Button>}
-        />
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/workspaces/${workspaceId}/audit`}>View audit log</Link>
+          </Button>
+          <IssueSubKeyDialog
+            workspaceId={workspaceId}
+            onIssued={(k) => setKeys((curr) => [k, ...curr])}
+            trigger={<Button>Issue sub-key</Button>}
+          />
+        </div>
       </header>
 
       {empty ? (
