@@ -63,6 +63,13 @@ export async function fetchProjects(masterKey: string): Promise<WeeekProjectRow[
   return unwrap<WeeekProjectRow>(env, ["projects", "data"]);
 }
 
+export type WeeekMemberRow = { id: number | string; name: string; email?: string };
+
+export async function fetchMembers(masterKey: string): Promise<WeeekMemberRow[]> {
+  const env = await callWeeek<unknown>("/ws/members", masterKey);
+  return unwrap<WeeekMemberRow>(env, ["members", "data"]);
+}
+
 export async function fetchBoards(
   masterKey: string,
   projectId?: string,

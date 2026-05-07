@@ -104,4 +104,30 @@ describe("weeekDirectory router", () => {
     await seeded.caller.weeekDirectory.boards({ workspaceId: seeded.workspaceId });
     expect(observedQuery).toBe("");
   });
+
+  test("members: returns list and caches", async () => {
+    const { _resetCacheForTests } = await import("@/server/weeek/cache");
+    _resetCacheForTests();
+    const seeded = await setup();
+    let calls = 0;
+    server.use(
+      http.get(`${WEEEK_BASE}/ws/members`, () => {
+        calls += 1;
+        return HttpResponse.json({ members: [{ id: "u1", name: "Alice" }] });
+      }),
+    );
+    const a = await seeded.caller.weeekDirectory.members({ workspaceId: seeded.workspaceId });
+    const b = await seeded.caller.weeekDirectory.members({ workspaceId: seeded.workspaceId });
+    expect(a).toEqual([{ id: "u1", name: "Alice" }]);
+    expect(b).toEqual([{ id: "u1", name: "Alice" }]);
+    expect(calls).toBe(1);
+  });
+
+  test("members: NOT_FOUND for someone else's workspace", async () => {
+    const a = await setup();
+    const b = await setup();
+    await expect(
+      b.caller.weeekDirectory.members({ workspaceId: a.workspaceId }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
 });

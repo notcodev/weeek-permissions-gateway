@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/server/db/client";
 import { weeekWorkspace } from "@/server/db/schema/workspace";
 import { decrypt } from "@/server/crypto/aesGcm";
-import { fetchBoards, fetchProjects } from "@/server/weeek/directory";
+import { fetchBoards, fetchMembers, fetchProjects } from "@/server/weeek/directory";
 import { getOrFetch } from "@/server/weeek/cache";
 import { protectedProcedure, router } from "../init";
 
@@ -41,6 +41,7 @@ const boardsInput = z.object({
   workspaceId: z.string().min(1),
   projectId: z.string().min(1).optional(),
 });
+const membersInput = z.object({ workspaceId: z.string().min(1) });
 
 export const weeekDirectoryRouter = router({
   projects: protectedProcedure.input(projectsInput).query(async ({ ctx, input }) => {
@@ -52,5 +53,10 @@ export const weeekDirectoryRouter = router({
     const masterKey = await loadMasterKey(input.workspaceId, ctx.session.user.id);
     const cacheKey = `boards:${input.workspaceId}:${input.projectId ?? "*"}`;
     return getOrFetch(cacheKey, TTL_MS, () => fetchBoards(masterKey, input.projectId));
+  }),
+
+  members: protectedProcedure.input(membersInput).query(async ({ ctx, input }) => {
+    const masterKey = await loadMasterKey(input.workspaceId, ctx.session.user.id);
+    return getOrFetch(`members:${input.workspaceId}`, TTL_MS, () => fetchMembers(masterKey));
   }),
 });
