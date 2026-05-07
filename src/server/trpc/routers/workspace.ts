@@ -8,6 +8,7 @@ import { encrypt } from "@/server/crypto/aesGcm";
 import { fingerprint, last4 } from "@/server/crypto/fingerprint";
 import { validateMasterKey } from "@/server/weeek/client";
 import { WeeekValidationError } from "@/server/weeek/errors";
+import { assertWriteRole, resolveOwnerContext } from "../ownerContext";
 import { protectedProcedure, router } from "../init";
 
 const importInput = z.object({
@@ -49,17 +50,15 @@ function toPublic(row: typeof weeekWorkspace.$inferSelect): WorkspacePublic {
   };
 }
 
-function ownerCtx(userId: string) {
-  return { ownerType: "user" as const, ownerId: userId };
-}
-
 export const workspaceRouter = router({
   list: protectedProcedure.query(async ({ ctx }): Promise<WorkspacePublic[]> => {
-    const { ownerType, ownerId } = ownerCtx(ctx.session.user.id);
+    const owner = await resolveOwnerContext(ctx.session);
     const rows = await db
       .select()
       .from(weeekWorkspace)
-      .where(and(eq(weeekWorkspace.ownerType, ownerType), eq(weeekWorkspace.ownerId, ownerId)))
+      .where(
+        and(eq(weeekWorkspace.ownerType, owner.ownerType), eq(weeekWorkspace.ownerId, owner.ownerId)),
+      )
       .orderBy(desc(weeekWorkspace.createdAt));
     return rows.map(toPublic);
   }),
@@ -67,7 +66,9 @@ export const workspaceRouter = router({
   import: protectedProcedure
     .input(importInput)
     .mutation(async ({ ctx, input }): Promise<WorkspacePublic> => {
-      const { ownerType, ownerId } = ownerCtx(ctx.session.user.id);
+      const owner = await resolveOwnerContext(ctx.session);
+      assertWriteRole(owner, "Importing a workspace");
+      const { ownerType, ownerId } = owner;
 
       try {
         await validateMasterKey(input.masterKey);
@@ -134,14 +135,15 @@ export const workspaceRouter = router({
     }),
 
   remove: protectedProcedure.input(removeInput).mutation(async ({ ctx, input }) => {
-    const { ownerType, ownerId } = ownerCtx(ctx.session.user.id);
+    const owner = await resolveOwnerContext(ctx.session);
+    assertWriteRole(owner, "Removing a workspace");
     const result = await db
       .delete(weeekWorkspace)
       .where(
         and(
           eq(weeekWorkspace.id, input.id),
-          eq(weeekWorkspace.ownerType, ownerType),
-          eq(weeekWorkspace.ownerId, ownerId),
+          eq(weeekWorkspace.ownerType, owner.ownerType),
+          eq(weeekWorkspace.ownerId, owner.ownerId),
         ),
       )
       .returning({ id: weeekWorkspace.id });
