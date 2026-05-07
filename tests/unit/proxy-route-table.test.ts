@@ -58,11 +58,6 @@ describe("matchRoute", () => {
     expect(m?.entry.verb).toBe("time_entries:read");
   });
 
-  test("POST /ws/projects → null (write verbs deferred to phase 5)", () => {
-    const m = matchRoute("POST", "/ws/projects", new URLSearchParams());
-    expect(m).toBeNull();
-  });
-
   test("GET /ws/unknown → null", () => {
     const m = matchRoute("GET", "/ws/this-is-not-real", new URLSearchParams());
     expect(m).toBeNull();
@@ -70,6 +65,117 @@ describe("matchRoute", () => {
 
   test("GET /not-ws/projects → null (out-of-prefix)", () => {
     const m = matchRoute("GET", "/not-ws/projects", new URLSearchParams());
+    expect(m).toBeNull();
+  });
+
+  // --- Write verbs (phase 5a) ---
+
+  test("POST /ws/projects → projects:write", () => {
+    const m = matchRoute("POST", "/ws/projects", new URLSearchParams());
+    expect(m?.entry.verb).toBe("projects:write");
+    expect(m?.entry.method).toBe("POST");
+  });
+
+  test("PATCH /ws/projects/42 → projects:write with projectId=42", () => {
+    const m = matchRoute("PATCH", "/ws/projects/42", new URLSearchParams());
+    expect(m?.entry.verb).toBe("projects:write");
+    expect(m?.params.projectId).toBe("42");
+  });
+
+  test("DELETE /ws/projects/42 → projects:delete", () => {
+    const m = matchRoute("DELETE", "/ws/projects/42", new URLSearchParams());
+    expect(m?.entry.verb).toBe("projects:delete");
+    expect(m?.params.projectId).toBe("42");
+  });
+
+  test("POST /ws/boards → boards:write", () => {
+    const m = matchRoute("POST", "/ws/boards", new URLSearchParams());
+    expect(m?.entry.verb).toBe("boards:write");
+  });
+
+  test("PATCH /ws/boards/9 → boards:write", () => {
+    const m = matchRoute("PATCH", "/ws/boards/9", new URLSearchParams());
+    expect(m?.entry.verb).toBe("boards:write");
+    expect(m?.params.boardId).toBe("9");
+  });
+
+  test("DELETE /ws/boards/9 → boards:delete", () => {
+    const m = matchRoute("DELETE", "/ws/boards/9", new URLSearchParams());
+    expect(m?.entry.verb).toBe("boards:delete");
+  });
+
+  test("POST /ws/tasks → tasks:write", () => {
+    const m = matchRoute("POST", "/ws/tasks", new URLSearchParams());
+    expect(m?.entry.verb).toBe("tasks:write");
+  });
+
+  test("PATCH /ws/tasks/abc → tasks:write", () => {
+    const m = matchRoute("PATCH", "/ws/tasks/abc", new URLSearchParams());
+    expect(m?.entry.verb).toBe("tasks:write");
+  });
+
+  test("DELETE /ws/tasks/abc → tasks:delete", () => {
+    const m = matchRoute("DELETE", "/ws/tasks/abc", new URLSearchParams());
+    expect(m?.entry.verb).toBe("tasks:delete");
+  });
+
+  test("POST /ws/tasks/abc/complete → tasks:complete", () => {
+    const m = matchRoute("POST", "/ws/tasks/abc/complete", new URLSearchParams());
+    expect(m?.entry.verb).toBe("tasks:complete");
+  });
+
+  test("POST /ws/tasks/abc/move → tasks:move", () => {
+    const m = matchRoute("POST", "/ws/tasks/abc/move", new URLSearchParams());
+    expect(m?.entry.verb).toBe("tasks:move");
+  });
+
+  test("POST /ws/tasks/abc/comments → comments:write", () => {
+    const m = matchRoute("POST", "/ws/tasks/abc/comments", new URLSearchParams());
+    expect(m?.entry.verb).toBe("comments:write");
+  });
+
+  test("PATCH /ws/tasks/abc/comments/c1 → comments:write", () => {
+    const m = matchRoute("PATCH", "/ws/tasks/abc/comments/c1", new URLSearchParams());
+    expect(m?.entry.verb).toBe("comments:write");
+  });
+
+  test("DELETE /ws/tasks/abc/comments/c1 → comments:delete", () => {
+    const m = matchRoute("DELETE", "/ws/tasks/abc/comments/c1", new URLSearchParams());
+    expect(m?.entry.verb).toBe("comments:delete");
+  });
+
+  test("POST /ws/custom-fields → custom_fields:write", () => {
+    const m = matchRoute("POST", "/ws/custom-fields", new URLSearchParams());
+    expect(m?.entry.verb).toBe("custom_fields:write");
+  });
+
+  test("PATCH /ws/custom-fields/cf1 → custom_fields:write", () => {
+    const m = matchRoute("PATCH", "/ws/custom-fields/cf1", new URLSearchParams());
+    expect(m?.entry.verb).toBe("custom_fields:write");
+  });
+
+  test("POST /ws/time-entries → time_entries:write", () => {
+    const m = matchRoute("POST", "/ws/time-entries", new URLSearchParams());
+    expect(m?.entry.verb).toBe("time_entries:write");
+  });
+
+  test("PATCH /ws/time-entries/te1 → time_entries:write", () => {
+    const m = matchRoute("PATCH", "/ws/time-entries/te1", new URLSearchParams());
+    expect(m?.entry.verb).toBe("time_entries:write");
+  });
+
+  test("DELETE /ws/time-entries/te1 → time_entries:delete", () => {
+    const m = matchRoute("DELETE", "/ws/time-entries/te1", new URLSearchParams());
+    expect(m?.entry.verb).toBe("time_entries:delete");
+  });
+
+  test("POST /ws/members → null (members are read-only per verb catalogue)", () => {
+    const m = matchRoute("POST", "/ws/members", new URLSearchParams());
+    expect(m).toBeNull();
+  });
+
+  test("DELETE /ws/custom-fields/cf1 → null (no custom_fields:delete verb)", () => {
+    const m = matchRoute("DELETE", "/ws/custom-fields/cf1", new URLSearchParams());
     expect(m).toBeNull();
   });
 

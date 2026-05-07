@@ -2,6 +2,11 @@
 
 exports[`matchRoute > table snapshot — surfaces drift when new endpoints land 1`] = `
 [
+  "DELETE ^\\/ws\\/boards\\/([^/]+)$ → boards:delete",
+  "DELETE ^\\/ws\\/projects\\/([^/]+)$ → projects:delete",
+  "DELETE ^\\/ws\\/tasks\\/([^/]+)$ → tasks:delete",
+  "DELETE ^\\/ws\\/tasks\\/([^/]+)\\/comments\\/([^/]+)$ → comments:delete",
+  "DELETE ^\\/ws\\/time-entries\\/([^/]+)$ → time_entries:delete",
   "GET ^\\/ws\\/boards$ → boards:read",
   "GET ^\\/ws\\/boards\\/([^/]+)$ → boards:read",
   "GET ^\\/ws\\/custom-fields$ → custom_fields:read",
@@ -12,5 +17,19 @@ exports[`matchRoute > table snapshot — surfaces drift when new endpoints land 
   "GET ^\\/ws\\/tasks\\/([^/]+)$ → tasks:read",
   "GET ^\\/ws\\/tasks\\/([^/]+)\\/comments$ → comments:read",
   "GET ^\\/ws\\/time-entries$ → time_entries:read",
+  "PATCH ^\\/ws\\/boards\\/([^/]+)$ → boards:write",
+  "PATCH ^\\/ws\\/custom-fields\\/([^/]+)$ → custom_fields:write",
+  "PATCH ^\\/ws\\/projects\\/([^/]+)$ → projects:write",
+  "PATCH ^\\/ws\\/tasks\\/([^/]+)$ → tasks:write",
+  "PATCH ^\\/ws\\/tasks\\/([^/]+)\\/comments\\/([^/]+)$ → comments:write",
+  "PATCH ^\\/ws\\/time-entries\\/([^/]+)$ → time_entries:write",
+  "POST ^\\/ws\\/boards$ → boards:write",
+  "POST ^\\/ws\\/custom-fields$ → custom_fields:write",
+  "POST ^\\/ws\\/projects$ → projects:write",
+  "POST ^\\/ws\\/tasks$ → tasks:write",
+  "POST ^\\/ws\\/tasks\\/([^/]+)\\/comments$ → comments:write",
+  "POST ^\\/ws\\/tasks\\/([^/]+)\\/complete$ → tasks:complete",
+  "POST ^\\/ws\\/tasks\\/([^/]+)\\/move$ → tasks:move",
+  "POST ^\\/ws\\/time-entries$ → time_entries:write",
 ]
 `;

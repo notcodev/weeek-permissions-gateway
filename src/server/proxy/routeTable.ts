@@ -92,6 +92,155 @@ export const ROUTE_TABLE: readonly RouteEntry[] = [
     verb: "time_entries:read",
     extractParams: fromQuery(["projectId"]),
   },
+
+  // --- Phase 5a write/delete entries ---
+  // TODO(verify): confirm exact paths/methods against Weeek's live API docs.
+  // Defaults below assume standard REST conventions.
+
+  // Projects
+  {
+    method: "POST",
+    pattern: new RegExp(`^/ws/projects$`),
+    resource: "projects",
+    verb: "projects:write",
+    extractParams: empty,
+  },
+  {
+    method: "PATCH",
+    pattern: new RegExp(`^/ws/projects/${ID}$`),
+    resource: "projects",
+    verb: "projects:write",
+    extractParams: (m) => ({ projectId: m[1] ?? "" }),
+  },
+  {
+    method: "DELETE",
+    pattern: new RegExp(`^/ws/projects/${ID}$`),
+    resource: "projects",
+    verb: "projects:delete",
+    extractParams: (m) => ({ projectId: m[1] ?? "" }),
+  },
+
+  // Boards
+  {
+    method: "POST",
+    pattern: new RegExp(`^/ws/boards$`),
+    resource: "boards",
+    verb: "boards:write",
+    extractParams: fromQuery(["projectId"]),
+  },
+  {
+    method: "PATCH",
+    pattern: new RegExp(`^/ws/boards/${ID}$`),
+    resource: "boards",
+    verb: "boards:write",
+    extractParams: (m) => ({ boardId: m[1] ?? "" }),
+  },
+  {
+    method: "DELETE",
+    pattern: new RegExp(`^/ws/boards/${ID}$`),
+    resource: "boards",
+    verb: "boards:delete",
+    extractParams: (m) => ({ boardId: m[1] ?? "" }),
+  },
+
+  // Tasks
+  {
+    method: "POST",
+    pattern: new RegExp(`^/ws/tasks$`),
+    resource: "tasks",
+    verb: "tasks:write",
+    extractParams: fromQuery(["projectId", "boardId"]),
+  },
+  {
+    method: "PATCH",
+    pattern: new RegExp(`^/ws/tasks/${ID}$`),
+    resource: "tasks",
+    verb: "tasks:write",
+    extractParams: () => ({}),
+  },
+  {
+    method: "DELETE",
+    pattern: new RegExp(`^/ws/tasks/${ID}$`),
+    resource: "tasks",
+    verb: "tasks:delete",
+    extractParams: () => ({}),
+  },
+  {
+    method: "POST",
+    pattern: new RegExp(`^/ws/tasks/${ID}/complete$`),
+    resource: "tasks",
+    verb: "tasks:complete",
+    extractParams: () => ({}),
+  },
+  {
+    method: "POST",
+    pattern: new RegExp(`^/ws/tasks/${ID}/move$`),
+    resource: "tasks",
+    verb: "tasks:move",
+    extractParams: () => ({}),
+  },
+
+  // Comments
+  {
+    method: "POST",
+    pattern: new RegExp(`^/ws/tasks/${ID}/comments$`),
+    resource: "comments",
+    verb: "comments:write",
+    extractParams: () => ({}),
+  },
+  {
+    method: "PATCH",
+    pattern: new RegExp(`^/ws/tasks/${ID}/comments/${ID}$`),
+    resource: "comments",
+    verb: "comments:write",
+    extractParams: () => ({}),
+  },
+  {
+    method: "DELETE",
+    pattern: new RegExp(`^/ws/tasks/${ID}/comments/${ID}$`),
+    resource: "comments",
+    verb: "comments:delete",
+    extractParams: () => ({}),
+  },
+
+  // Custom fields
+  {
+    method: "POST",
+    pattern: new RegExp(`^/ws/custom-fields$`),
+    resource: "custom_fields",
+    verb: "custom_fields:write",
+    extractParams: empty,
+  },
+  {
+    method: "PATCH",
+    pattern: new RegExp(`^/ws/custom-fields/${ID}$`),
+    resource: "custom_fields",
+    verb: "custom_fields:write",
+    extractParams: empty,
+  },
+
+  // Time entries (write/delete)
+  {
+    method: "POST",
+    pattern: new RegExp(`^/ws/time-entries$`),
+    resource: "time_entries",
+    verb: "time_entries:write",
+    extractParams: fromQuery(["projectId"]),
+  },
+  {
+    method: "PATCH",
+    pattern: new RegExp(`^/ws/time-entries/${ID}$`),
+    resource: "time_entries",
+    verb: "time_entries:write",
+    extractParams: empty,
+  },
+  {
+    method: "DELETE",
+    pattern: new RegExp(`^/ws/time-entries/${ID}$`),
+    resource: "time_entries",
+    verb: "time_entries:delete",
+    extractParams: empty,
+  },
 ];
 
 export function matchRoute(
