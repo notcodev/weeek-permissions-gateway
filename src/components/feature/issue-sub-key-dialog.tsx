@@ -14,10 +14,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubKeyRevealModal } from "./sub-key-reveal-modal";
 import { ScopeStep } from "./scope-step";
+import { IdentityStep, type IdentityState } from "./identity-step";
 import { expandPreset, type PresetKey } from "@/server/verbs";
 import type { SubKeyPublic } from "@/server/trpc/routers/subKey";
 
@@ -51,12 +51,20 @@ const PRESET_OPTIONS: ReadonlyArray<{
   },
 ];
 
+const INITIAL_IDENTITY: IdentityState = {
+  label: "",
+  boundWeeekUserId: null,
+  boundWeeekUserName: null,
+  visibilityBound: false,
+  authorRewrite: false,
+};
+
 export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>(1);
-  const [label, setLabel] = useState("");
+  const [identity, setIdentity] = useState<IdentityState>(INITIAL_IDENTITY);
   const [preset, setPreset] = useState<PresetKey>("read-only");
   const [scopeProjects, setScopeProjects] = useState<readonly string[]>(["*"]);
   const [scopeBoards, setScopeBoards] = useState<readonly string[]>(["*"]);
@@ -79,7 +87,7 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
 
   function reset() {
     setStep(1);
-    setLabel("");
+    setIdentity(INITIAL_IDENTITY);
     setPreset("read-only");
     setScopeProjects(["*"]);
     setScopeBoards(["*"]);
@@ -88,8 +96,12 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
   function previewPolicy() {
     return JSON.stringify(
       {
-        label,
+        label: identity.label,
         preset,
+        bound_weeek_user_id: identity.boundWeeekUserId,
+        bound_weeek_user_name: identity.boundWeeekUserName,
+        visibility_bound: identity.visibilityBound,
+        author_rewrite: identity.authorRewrite,
         scope_projects: [...scopeProjects],
         scope_boards: [...scopeBoards],
         verbs: [...expandPreset(preset)],
@@ -128,21 +140,7 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
           </DialogHeader>
 
           {step === 1 ? (
-            <div className="grid gap-2">
-              <Label htmlFor="sk-label">Label</Label>
-              <Input
-                id="sk-label"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="CI bot"
-                autoComplete="off"
-                maxLength={80}
-                required
-              />
-              <p className="text-muted-foreground text-xs">
-                Shown in the dashboard and in audit log; not embedded in the key itself.
-              </p>
-            </div>
+            <IdentityStep workspaceId={workspaceId} state={identity} onChange={setIdentity} />
           ) : null}
 
           {step === 2 ? (
@@ -224,7 +222,7 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
               <Button
                 type="button"
                 disabled={
-                  (step === 1 && label.trim().length === 0) ||
+                  (step === 1 && identity.label.trim().length === 0) ||
                   (step === 2 && !scopeValid)
                 }
                 onClick={() => setStep(((step + 1) as Step) || 4)}
@@ -238,10 +236,14 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
                 onClick={() =>
                   createMutation.mutate({
                     workspaceId,
-                    label: label.trim(),
+                    label: identity.label.trim(),
                     preset,
                     scopeProjects: [...scopeProjects],
                     scopeBoards: [...scopeBoards],
+                    boundWeeekUserId: identity.boundWeeekUserId,
+                    boundWeeekUserName: identity.boundWeeekUserName,
+                    visibilityBound: identity.visibilityBound,
+                    authorRewrite: identity.authorRewrite,
                   })
                 }
               >
