@@ -75,6 +75,73 @@ describe("forward", () => {
     const body = (await res.json()) as { error: { code: string; requestId: string } };
     expect(body.error.code).toBe("upstream_error");
     expect(body.error.requestId).toBe("req_test");
+    expect(res.headers.get("x-proxy-upstream-status")).toBe("network_error");
+  });
+
+  test("retries once on upstream 5xx and returns final response", async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${WEEEK_BASE}/ws/projects`, () => {
+        calls += 1;
+        if (calls === 1) return HttpResponse.json({ err: "first" }, { status: 502 });
+        return HttpResponse.json({ ok: true }, { status: 200 });
+      }),
+    );
+    const { forward } = await import("@/server/proxy/forward");
+    const res = await forward({
+      masterKey: "wk",
+      pathname: "/ws/projects",
+      search: "",
+      method: "GET",
+      headers: new Headers(),
+      body: null,
+    });
+    expect(calls).toBe(2);
+    expect(res.status).toBe(200);
+  });
+
+  test("retries once then passes through second 5xx unchanged", async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${WEEEK_BASE}/ws/projects`, () => {
+        calls += 1;
+        return HttpResponse.json({ err: `attempt-${calls}` }, { status: 503 });
+      }),
+    );
+    const { forward } = await import("@/server/proxy/forward");
+    const res = await forward({
+      masterKey: "wk",
+      pathname: "/ws/projects",
+      search: "",
+      method: "GET",
+      headers: new Headers(),
+      body: null,
+    });
+    expect(calls).toBe(2);
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { err: string };
+    expect(body.err).toBe("attempt-2");
+  });
+
+  test("does NOT retry on 4xx", async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${WEEEK_BASE}/ws/projects`, () => {
+        calls += 1;
+        return HttpResponse.json({ err: "nope" }, { status: 404 });
+      }),
+    );
+    const { forward } = await import("@/server/proxy/forward");
+    const res = await forward({
+      masterKey: "wk",
+      pathname: "/ws/projects",
+      search: "",
+      method: "GET",
+      headers: new Headers(),
+      body: null,
+    });
+    expect(calls).toBe(1);
+    expect(res.status).toBe(404);
   });
 
   test("preserves query string", async () => {

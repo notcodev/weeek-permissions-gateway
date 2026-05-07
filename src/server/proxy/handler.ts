@@ -82,10 +82,15 @@ export async function proxy(req: Request): Promise<Response> {
   // 5. Audit (fire-and-forget — never blocks the response).
   void recordUsage(authed.subKeyId);
 
+  // Read and strip the internal marker set by forward() to distinguish
+  // the actual upstream status from our synthesised status (e.g. synth-502).
+  const upstreamStatus = upstream.headers.get("x-proxy-upstream-status") ?? "unknown";
+  upstream.headers.delete("x-proxy-upstream-status");
+
   log.info(
     {
       ourStatus: upstream.status,
-      upstreamStatus: upstream.status,
+      upstreamStatus,
       subKeyId: authed.subKeyShortId,
       verb: match.entry.verb,
     },

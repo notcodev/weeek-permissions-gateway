@@ -107,6 +107,8 @@ describe("proxy handler matrix", () => {
     expect(res.status).toBe(502);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe("upstream_error");
+    // Internal header must be stripped before reaching the consumer.
+    expect(res.headers.get("x-proxy-upstream-status")).toBeNull();
   });
 
   test("query string is forwarded", async () => {
