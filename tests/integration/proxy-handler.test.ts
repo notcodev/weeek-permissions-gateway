@@ -74,10 +74,10 @@ describe("proxy handler matrix", () => {
     expect(body.error.subKeyId).toBe(seeded.subKeyId.slice(0, 8));
   });
 
-  test("403 verb_missing for POST /ws/projects on read-only preset", async () => {
+  test("403 verb_missing for POST /tm/projects on read-only preset", async () => {
     const seeded = await setup("read-only");
     const { proxy } = await import("@/server/proxy/handler");
-    const res = await proxy(gatewayReq(seeded.rawKey, "/ws/projects", "POST"));
+    const res = await proxy(gatewayReq(seeded.rawKey, "/tm/projects", "POST"));
     expect(res.status).toBe(403);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe("verb_missing");
@@ -101,9 +101,9 @@ describe("proxy handler matrix", () => {
 
   test("502 upstream_error when Weeek is unreachable", async () => {
     const seeded = await setup("read-only");
-    server.use(http.get(`${WEEEK_BASE}/ws/projects`, () => HttpResponse.error()));
+    server.use(http.get(`${WEEEK_BASE}/tm/projects`, () => HttpResponse.error()));
     const { proxy } = await import("@/server/proxy/handler");
-    const res = await proxy(gatewayReq(seeded.rawKey, "/ws/projects"));
+    const res = await proxy(gatewayReq(seeded.rawKey, "/tm/projects"));
     expect(res.status).toBe(502);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe("upstream_error");
@@ -115,13 +115,13 @@ describe("proxy handler matrix", () => {
     const seeded = await setup("read-only");
     let observedUrl = "";
     server.use(
-      http.get(`${WEEEK_BASE}/ws/tasks`, ({ request }) => {
+      http.get(`${WEEEK_BASE}/tm/tasks`, ({ request }) => {
         observedUrl = request.url;
         return HttpResponse.json({ tasks: [] });
       }),
     );
     const { proxy } = await import("@/server/proxy/handler");
-    const res = await proxy(gatewayReq(seeded.rawKey, "/ws/tasks?projectId=42"));
+    const res = await proxy(gatewayReq(seeded.rawKey, "/tm/tasks?projectId=42"));
     expect(res.status).toBe(200);
     expect(observedUrl).toContain("projectId=42");
   });
@@ -153,12 +153,12 @@ describe("proxy handler matrix", () => {
 
   // --- Phase 5a: write/delete verbs ---
 
-  test("POST /ws/tasks succeeds for task-automator preset and forwards the body", async () => {
+  test("POST /tm/tasks succeeds for task-automator preset and forwards the body", async () => {
     const seeded = await setup("task-automator");
     let receivedBody: unknown;
     let observedAuth = "";
     server.use(
-      http.post(`${WEEEK_BASE}/ws/tasks`, async ({ request }) => {
+      http.post(`${WEEEK_BASE}/tm/tasks`, async ({ request }) => {
         observedAuth = request.headers.get("authorization") ?? "";
         receivedBody = await request.json();
         return HttpResponse.json({ id: "task_new" }, { status: 201 });
@@ -168,7 +168,7 @@ describe("proxy handler matrix", () => {
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     headers.set("content-type", "application/json");
-    const req = new Request("https://gw.test/api/v1/ws/tasks", {
+    const req = new Request("https://gw.test/api/v1/tm/tasks", {
       method: "POST",
       headers,
       body: JSON.stringify({ title: "hello", boardId: "b1" }),
@@ -179,13 +179,13 @@ describe("proxy handler matrix", () => {
     expect(receivedBody).toEqual({ title: "hello", boardId: "b1" });
   });
 
-  test("POST /ws/tasks denied with verb_missing for read-only preset", async () => {
+  test("POST /tm/tasks denied with verb_missing for read-only preset", async () => {
     const seeded = await setup("read-only");
     const { proxy } = await import("@/server/proxy/handler");
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     headers.set("content-type", "application/json");
-    const req = new Request("https://gw.test/api/v1/ws/tasks", {
+    const req = new Request("https://gw.test/api/v1/tm/tasks", {
       method: "POST",
       headers,
       body: JSON.stringify({ title: "x" }),
@@ -196,12 +196,12 @@ describe("proxy handler matrix", () => {
     expect(body.error.code).toBe("verb_missing");
   });
 
-  test("DELETE /ws/tasks/123 denied for task-automator (no tasks:delete)", async () => {
+  test("DELETE /tm/tasks/123 denied for task-automator (no tasks:delete)", async () => {
     const seeded = await setup("task-automator");
     const { proxy } = await import("@/server/proxy/handler");
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
-    const req = new Request("https://gw.test/api/v1/ws/tasks/123", {
+    const req = new Request("https://gw.test/api/v1/tm/tasks/123", {
       method: "DELETE",
       headers,
     });
@@ -211,17 +211,17 @@ describe("proxy handler matrix", () => {
     expect(body.error.code).toBe("verb_missing");
   });
 
-  test("DELETE /ws/tasks/123 succeeds for full-access preset", async () => {
+  test("DELETE /tm/tasks/123 succeeds for full-access preset", async () => {
     const seeded = await setup("full-access");
     server.use(
-      http.delete(`${WEEEK_BASE}/ws/tasks/123`, () =>
+      http.delete(`${WEEEK_BASE}/tm/tasks/123`, () =>
         HttpResponse.json({ ok: true }, { status: 200 }),
       ),
     );
     const { proxy } = await import("@/server/proxy/handler");
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
-    const req = new Request("https://gw.test/api/v1/ws/tasks/123", {
+    const req = new Request("https://gw.test/api/v1/tm/tasks/123", {
       method: "DELETE",
       headers,
     });
@@ -229,11 +229,11 @@ describe("proxy handler matrix", () => {
     expect(res.status).toBe(200);
   });
 
-  test("POST /ws/tasks/123/complete uses tasks:complete verb (granted by task-automator)", async () => {
+  test("POST /tm/tasks/123/complete uses tasks:complete verb (granted by task-automator)", async () => {
     const seeded = await setup("task-automator");
     let hit = false;
     server.use(
-      http.post(`${WEEEK_BASE}/ws/tasks/123/complete`, () => {
+      http.post(`${WEEEK_BASE}/tm/tasks/123/complete`, () => {
         hit = true;
         return HttpResponse.json({ ok: true });
       }),
@@ -241,7 +241,7 @@ describe("proxy handler matrix", () => {
     const { proxy } = await import("@/server/proxy/handler");
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
-    const req = new Request("https://gw.test/api/v1/ws/tasks/123/complete", {
+    const req = new Request("https://gw.test/api/v1/tm/tasks/123/complete", {
       method: "POST",
       headers,
     });
@@ -250,11 +250,11 @@ describe("proxy handler matrix", () => {
     expect(hit).toBe(true);
   });
 
-  test("POST /ws/tasks/123/move uses tasks:move verb (granted by task-automator)", async () => {
+  test("POST /tm/tasks/123/board uses tasks:move verb (granted by task-automator)", async () => {
     const seeded = await setup("task-automator");
     let hit = false;
     server.use(
-      http.post(`${WEEEK_BASE}/ws/tasks/123/move`, () => {
+      http.post(`${WEEEK_BASE}/tm/tasks/123/board`, () => {
         hit = true;
         return HttpResponse.json({ ok: true });
       }),
@@ -262,10 +262,32 @@ describe("proxy handler matrix", () => {
     const { proxy } = await import("@/server/proxy/handler");
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
-    const req = new Request("https://gw.test/api/v1/ws/tasks/123/move", {
+    const req = new Request("https://gw.test/api/v1/tm/tasks/123/board", {
       method: "POST",
       headers,
       body: JSON.stringify({ boardId: "b2" }),
+    });
+    const res = await proxy(req);
+    expect(res.status).toBe(200);
+    expect(hit).toBe(true);
+  });
+
+  test("POST /tm/tasks/123/board-column also uses tasks:move verb", async () => {
+    const seeded = await setup("task-automator");
+    let hit = false;
+    server.use(
+      http.post(`${WEEEK_BASE}/tm/tasks/123/board-column`, () => {
+        hit = true;
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+    const { proxy } = await import("@/server/proxy/handler");
+    const headers = new Headers();
+    headers.set("authorization", `Bearer ${seeded.rawKey}`);
+    const req = new Request("https://gw.test/api/v1/tm/tasks/123/board-column", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ boardColumnId: "c1" }),
     });
     const res = await proxy(req);
     expect(res.status).toBe(200);
@@ -276,7 +298,7 @@ describe("proxy handler matrix", () => {
     const seeded = await setup("full-access");
     let calls = 0;
     server.use(
-      http.post(`${WEEEK_BASE}/ws/tasks`, () => {
+      http.post(`${WEEEK_BASE}/tm/tasks`, () => {
         calls += 1;
         return HttpResponse.json({ err: "boom" }, { status: 503 });
       }),
@@ -285,7 +307,7 @@ describe("proxy handler matrix", () => {
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     headers.set("content-type", "application/json");
-    const req = new Request("https://gw.test/api/v1/ws/tasks", {
+    const req = new Request("https://gw.test/api/v1/tm/tasks", {
       method: "POST",
       headers,
       body: JSON.stringify({ title: "x" }),
@@ -295,12 +317,12 @@ describe("proxy handler matrix", () => {
     expect(calls).toBe(1);
   });
 
-  test("PATCH /ws/tasks/abc forwards PATCH method and body", async () => {
+  test("PUT /tm/tasks/abc forwards PUT method and body", async () => {
     const seeded = await setup("full-access");
     let observedMethod = "";
     let observedBody: unknown;
     server.use(
-      http.patch(`${WEEEK_BASE}/ws/tasks/abc`, async ({ request }) => {
+      http.put(`${WEEEK_BASE}/tm/tasks/abc`, async ({ request }) => {
         observedMethod = request.method;
         observedBody = await request.json();
         return HttpResponse.json({ ok: true });
@@ -310,14 +332,14 @@ describe("proxy handler matrix", () => {
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     headers.set("content-type", "application/json");
-    const req = new Request("https://gw.test/api/v1/ws/tasks/abc", {
-      method: "PATCH",
+    const req = new Request("https://gw.test/api/v1/tm/tasks/abc", {
+      method: "PUT",
       headers,
       body: JSON.stringify({ title: "renamed" }),
     });
     const res = await proxy(req);
     expect(res.status).toBe(200);
-    expect(observedMethod).toBe("PATCH");
+    expect(observedMethod).toBe("PUT");
     expect(observedBody).toEqual({ title: "renamed" });
   });
 
@@ -340,11 +362,11 @@ describe("proxy handler matrix", () => {
     return seeded;
   }
 
-  test("GET /ws/tasks injects assigneeId when visibilityBound", async () => {
+  test("GET /tm/tasks injects userId when visibilityBound", async () => {
     const seeded = await setupBound({ visibilityBound: true, authorRewrite: false });
     let observedQuery: string | null = null;
     server.use(
-      http.get(`${WEEEK_BASE}/ws/tasks`, ({ request }) => {
+      http.get(`${WEEEK_BASE}/tm/tasks`, ({ request }) => {
         observedQuery = new URL(request.url).search;
         return HttpResponse.json({ tasks: [] });
       }),
@@ -353,17 +375,17 @@ describe("proxy handler matrix", () => {
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     const res = await proxy(
-      new Request("https://gw.test/api/v1/ws/tasks", { method: "GET", headers }),
+      new Request("https://gw.test/api/v1/tm/tasks", { method: "GET", headers }),
     );
     expect(res.status).toBe(200);
-    expect(observedQuery).toContain("assigneeId=u-bound");
+    expect(observedQuery).toContain("userId=u-bound");
   });
 
-  test("GET /ws/tasks/abc does NOT inject assigneeId (single resource, not list)", async () => {
+  test("GET /tm/tasks/abc does NOT inject userId (single resource, not list)", async () => {
     const seeded = await setupBound({ visibilityBound: true, authorRewrite: false });
     let observedQuery: string | null = null;
     server.use(
-      http.get(`${WEEEK_BASE}/ws/tasks/abc`, ({ request }) => {
+      http.get(`${WEEEK_BASE}/tm/tasks/abc`, ({ request }) => {
         observedQuery = new URL(request.url).search;
         return HttpResponse.json({ id: "abc" });
       }),
@@ -372,17 +394,17 @@ describe("proxy handler matrix", () => {
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     const res = await proxy(
-      new Request("https://gw.test/api/v1/ws/tasks/abc", { method: "GET", headers }),
+      new Request("https://gw.test/api/v1/tm/tasks/abc", { method: "GET", headers }),
     );
     expect(res.status).toBe(200);
     expect(observedQuery).toBe("");
   });
 
-  test("GET /ws/projects does NOT inject assigneeId (resource not in spec list)", async () => {
+  test("GET /tm/projects does NOT inject userId (resource not in spec list)", async () => {
     const seeded = await setupBound({ visibilityBound: true, authorRewrite: false });
     let observedQuery: string | null = null;
     server.use(
-      http.get(`${WEEEK_BASE}/ws/projects`, ({ request }) => {
+      http.get(`${WEEEK_BASE}/tm/projects`, ({ request }) => {
         observedQuery = new URL(request.url).search;
         return HttpResponse.json({ projects: [] });
       }),
@@ -391,17 +413,17 @@ describe("proxy handler matrix", () => {
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     const res = await proxy(
-      new Request("https://gw.test/api/v1/ws/projects", { method: "GET", headers }),
+      new Request("https://gw.test/api/v1/tm/projects", { method: "GET", headers }),
     );
     expect(res.status).toBe(200);
     expect(observedQuery).toBe("");
   });
 
-  test("POST /ws/tasks injects assigneeId in body when authorRewrite", async () => {
+  test("POST /tm/tasks injects userId in body when authorRewrite", async () => {
     const seeded = await setupBound({ visibilityBound: false, authorRewrite: true });
     let observedBody: unknown;
     server.use(
-      http.post(`${WEEEK_BASE}/ws/tasks`, async ({ request }) => {
+      http.post(`${WEEEK_BASE}/tm/tasks`, async ({ request }) => {
         observedBody = await request.json();
         return HttpResponse.json({ id: "task_new" });
       }),
@@ -411,21 +433,21 @@ describe("proxy handler matrix", () => {
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     headers.set("content-type", "application/json");
     const res = await proxy(
-      new Request("https://gw.test/api/v1/ws/tasks", {
+      new Request("https://gw.test/api/v1/tm/tasks", {
         method: "POST",
         headers,
         body: JSON.stringify({ title: "hello" }),
       }),
     );
     expect(res.status).toBe(200);
-    expect(observedBody).toEqual({ title: "hello", assigneeId: "u-bound" });
+    expect(observedBody).toEqual({ title: "hello", userId: "u-bound" });
   });
 
-  test("POST /ws/tasks does NOT overwrite caller-provided assigneeId", async () => {
+  test("POST /tm/tasks does NOT overwrite caller-provided userId", async () => {
     const seeded = await setupBound({ visibilityBound: false, authorRewrite: true });
     let observedBody: unknown;
     server.use(
-      http.post(`${WEEEK_BASE}/ws/tasks`, async ({ request }) => {
+      http.post(`${WEEEK_BASE}/tm/tasks`, async ({ request }) => {
         observedBody = await request.json();
         return HttpResponse.json({ id: "x" });
       }),
@@ -435,14 +457,14 @@ describe("proxy handler matrix", () => {
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     headers.set("content-type", "application/json");
     const res = await proxy(
-      new Request("https://gw.test/api/v1/ws/tasks", {
+      new Request("https://gw.test/api/v1/tm/tasks", {
         method: "POST",
         headers,
-        body: JSON.stringify({ title: "x", assigneeId: "u-self" }),
+        body: JSON.stringify({ title: "x", userId: "u-self" }),
       }),
     );
     expect(res.status).toBe(200);
-    expect(observedBody).toEqual({ title: "x", assigneeId: "u-self" });
+    expect(observedBody).toEqual({ title: "x", userId: "u-self" });
   });
 
   test("flags off: no rewrite happens", async () => {
@@ -450,11 +472,11 @@ describe("proxy handler matrix", () => {
     let observedQuery: string | null = null;
     let observedBody: unknown;
     server.use(
-      http.get(`${WEEEK_BASE}/ws/tasks`, ({ request }) => {
+      http.get(`${WEEEK_BASE}/tm/tasks`, ({ request }) => {
         observedQuery = new URL(request.url).search;
         return HttpResponse.json({ tasks: [] });
       }),
-      http.post(`${WEEEK_BASE}/ws/tasks`, async ({ request }) => {
+      http.post(`${WEEEK_BASE}/tm/tasks`, async ({ request }) => {
         observedBody = await request.json();
         return HttpResponse.json({ id: "x" });
       }),
@@ -463,11 +485,11 @@ describe("proxy handler matrix", () => {
     const headers = new Headers();
     headers.set("authorization", `Bearer ${seeded.rawKey}`);
     headers.set("content-type", "application/json");
-    await proxy(new Request("https://gw.test/api/v1/ws/tasks", { method: "GET", headers }));
+    await proxy(new Request("https://gw.test/api/v1/tm/tasks", { method: "GET", headers }));
     expect(observedQuery).toBe("");
 
     await proxy(
-      new Request("https://gw.test/api/v1/ws/tasks", {
+      new Request("https://gw.test/api/v1/tm/tasks", {
         method: "POST",
         headers,
         body: JSON.stringify({ title: "x" }),

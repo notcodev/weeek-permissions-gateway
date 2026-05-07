@@ -97,8 +97,8 @@ export function IdentityStep({ workspaceId, state, onChange }: Props) {
         <span className="text-sm">
           <span className="font-medium">Filter visibility to this user.</span>{" "}
           <span className="text-muted-foreground">
-            On list endpoints (tasks, comments, time entries) the proxy injects an{" "}
-            <code className="px-1">assigneeId</code> filter so this sub-key only sees the bound
+            On the task list endpoint the proxy injects a{" "}
+            <code className="px-1">userId</code> filter so this sub-key only sees the bound
             user&apos;s items.
           </span>
         </span>
@@ -119,8 +119,8 @@ export function IdentityStep({ workspaceId, state, onChange }: Props) {
         <span className="text-sm">
           <span className="font-medium">Use as default author.</span>{" "}
           <span className="text-muted-foreground">
-            On task and comment writes, if the request body omits the author field, the proxy
-            inserts the bound user&apos;s id.
+            On task creates and updates, if the request body omits the{" "}
+            <code className="px-1">userId</code> field, the proxy inserts the bound user&apos;s id.
           </span>
         </span>
       </label>
