@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubKeyRevealModal } from "./sub-key-reveal-modal";
+import { ScopeStep } from "./scope-step";
 import { expandPreset, type PresetKey } from "@/server/verbs";
 import type { SubKeyPublic } from "@/server/trpc/routers/subKey";
 
@@ -26,7 +27,7 @@ type Props = {
   trigger: ReactNode;
 };
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 const PRESET_OPTIONS: ReadonlyArray<{
   key: PresetKey;
@@ -57,6 +58,8 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [label, setLabel] = useState("");
   const [preset, setPreset] = useState<PresetKey>("read-only");
+  const [scopeProjects, setScopeProjects] = useState<readonly string[]>(["*"]);
+  const [scopeBoards, setScopeBoards] = useState<readonly string[]>(["*"]);
   const [revealKey, setRevealKey] = useState<string | null>(null);
 
   const createMutation = trpc.subKey.create.useMutation({
@@ -78,6 +81,8 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
     setStep(1);
     setLabel("");
     setPreset("read-only");
+    setScopeProjects(["*"]);
+    setScopeBoards(["*"]);
   }
 
   function previewPolicy() {
@@ -85,14 +90,16 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
       {
         label,
         preset,
-        scope_projects: ["*"],
-        scope_boards: ["*"],
+        scope_projects: [...scopeProjects],
+        scope_boards: [...scopeBoards],
         verbs: [...expandPreset(preset)],
       },
       null,
       2,
     );
   }
+
+  const scopeValid = scopeProjects.length > 0 && scopeBoards.length > 0;
 
   return (
     <>
@@ -109,7 +116,14 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
           <DialogHeader>
             <DialogTitle>Issue a sub-key</DialogTitle>
             <DialogDescription>
-              Step {step} of 3: {step === 1 ? "Identity" : step === 2 ? "Verbs" : "Review"}
+              Step {step} of 4:{" "}
+              {step === 1
+                ? "Identity"
+                : step === 2
+                  ? "Scope"
+                  : step === 3
+                    ? "Verbs"
+                    : "Review"}
             </DialogDescription>
           </DialogHeader>
 
@@ -132,6 +146,18 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
           ) : null}
 
           {step === 2 ? (
+            <ScopeStep
+              workspaceId={workspaceId}
+              scopeProjects={scopeProjects}
+              scopeBoards={scopeBoards}
+              onChange={({ scopeProjects: p, scopeBoards: b }) => {
+                setScopeProjects(p);
+                setScopeBoards(b);
+              }}
+            />
+          ) : null}
+
+          {step === 3 ? (
             <div className="flex flex-col gap-3">
               <p className="text-muted-foreground text-sm">
                 Pick a preset. Custom verb selection arrives in a later phase.
@@ -159,7 +185,7 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
             </div>
           ) : null}
 
-          {step === 3 ? (
+          {step === 4 ? (
             <div className="grid gap-2">
               <Label>Policy preview</Label>
               <pre className="bg-muted max-h-64 overflow-auto rounded-md border px-3 py-2 font-mono text-xs">
@@ -194,11 +220,14 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
                 Cancel
               </Button>
             )}
-            {step < 3 ? (
+            {step < 4 ? (
               <Button
                 type="button"
-                disabled={step === 1 && label.trim().length === 0}
-                onClick={() => setStep(((step + 1) as Step) || 3)}
+                disabled={
+                  (step === 1 && label.trim().length === 0) ||
+                  (step === 2 && !scopeValid)
+                }
+                onClick={() => setStep(((step + 1) as Step) || 4)}
               >
                 Next
               </Button>
@@ -211,6 +240,8 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
                     workspaceId,
                     label: label.trim(),
                     preset,
+                    scopeProjects: [...scopeProjects],
+                    scopeBoards: [...scopeBoards],
                   })
                 }
               >
