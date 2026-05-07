@@ -2,45 +2,36 @@ import { describe, expect, test } from "vitest";
 import { matchRoute, ROUTE_TABLE } from "@/server/proxy/routeTable";
 
 describe("matchRoute", () => {
-  test("GET /ws/projects → projects:read with no params", () => {
-    const m = matchRoute("GET", "/ws/projects", new URLSearchParams());
-    expect(m?.entry.resource).toBe("projects");
+  // --- Reads ---
+  test("GET /tm/projects → projects:read", () => {
+    const m = matchRoute("GET", "/tm/projects", new URLSearchParams());
     expect(m?.entry.verb).toBe("projects:read");
     expect(m?.params).toEqual({});
   });
 
-  test("GET /ws/projects/42 → projects:read with projectId=42", () => {
-    const m = matchRoute("GET", "/ws/projects/42", new URLSearchParams());
+  test("GET /tm/projects/42 → projects:read with projectId=42", () => {
+    const m = matchRoute("GET", "/tm/projects/42", new URLSearchParams());
     expect(m?.entry.verb).toBe("projects:read");
     expect(m?.params.projectId).toBe("42");
   });
 
-  test("GET /ws/boards → boards:read; projectId comes from query", () => {
-    const m = matchRoute("GET", "/ws/boards", new URLSearchParams("projectId=7"));
+  test("GET /tm/boards?projectId=7 → boards:read; projectId pulled from query", () => {
+    const m = matchRoute("GET", "/tm/boards", new URLSearchParams("projectId=7"));
     expect(m?.entry.verb).toBe("boards:read");
     expect(m?.params.projectId).toBe("7");
   });
 
-  test("GET /ws/boards/123 → boards:read with boardId=123", () => {
-    const m = matchRoute("GET", "/ws/boards/123", new URLSearchParams());
-    expect(m?.entry.verb).toBe("boards:read");
-    expect(m?.params.boardId).toBe("123");
-  });
-
-  test("GET /ws/tasks → tasks:read; projectId/boardId from query", () => {
-    const m = matchRoute("GET", "/ws/tasks", new URLSearchParams("projectId=9&boardId=4"));
+  test("GET /tm/tasks → tasks:read; flagged listEndpoint", () => {
+    const m = matchRoute("GET", "/tm/tasks", new URLSearchParams("projectId=9&boardId=4"));
     expect(m?.entry.verb).toBe("tasks:read");
     expect(m?.params).toEqual({ projectId: "9", boardId: "4" });
+    expect(m?.entry.flags?.listEndpoint).toBe(true);
   });
 
-  test("GET /ws/tasks/abc → tasks:read", () => {
-    const m = matchRoute("GET", "/ws/tasks/abc", new URLSearchParams());
+  test("GET /tm/tasks/abc → tasks:read; NOT listEndpoint", () => {
+    const m = matchRoute("GET", "/tm/tasks/abc", new URLSearchParams());
     expect(m?.entry.verb).toBe("tasks:read");
-  });
-
-  test("GET /ws/tasks/abc/comments → comments:read", () => {
-    const m = matchRoute("GET", "/ws/tasks/abc/comments", new URLSearchParams());
-    expect(m?.entry.verb).toBe("comments:read");
+    expect(m?.entry.flags?.listEndpoint).toBeFalsy();
   });
 
   test("GET /ws/members → members:read", () => {
@@ -48,179 +39,153 @@ describe("matchRoute", () => {
     expect(m?.entry.verb).toBe("members:read");
   });
 
-  test("GET /ws/custom-fields → custom_fields:read", () => {
-    const m = matchRoute("GET", "/ws/custom-fields", new URLSearchParams());
+  test("GET /tm/custom-fields → custom_fields:read", () => {
+    const m = matchRoute("GET", "/tm/custom-fields", new URLSearchParams());
     expect(m?.entry.verb).toBe("custom_fields:read");
   });
 
-  test("GET /ws/time-entries → time_entries:read", () => {
-    const m = matchRoute("GET", "/ws/time-entries", new URLSearchParams());
-    expect(m?.entry.verb).toBe("time_entries:read");
-  });
-
-  test("GET /ws/unknown → null", () => {
-    const m = matchRoute("GET", "/ws/this-is-not-real", new URLSearchParams());
-    expect(m).toBeNull();
-  });
-
-  test("GET /not-ws/projects → null (out-of-prefix)", () => {
-    const m = matchRoute("GET", "/not-ws/projects", new URLSearchParams());
-    expect(m).toBeNull();
-  });
-
-  // --- Write verbs (phase 5a) ---
-
-  test("POST /ws/projects → projects:write", () => {
-    const m = matchRoute("POST", "/ws/projects", new URLSearchParams());
+  // --- Writes (PUT for updates per Weeek API) ---
+  test("POST /tm/projects → projects:write", () => {
+    const m = matchRoute("POST", "/tm/projects", new URLSearchParams());
     expect(m?.entry.verb).toBe("projects:write");
-    expect(m?.entry.method).toBe("POST");
   });
 
-  test("PATCH /ws/projects/42 → projects:write with projectId=42", () => {
-    const m = matchRoute("PATCH", "/ws/projects/42", new URLSearchParams());
+  test("PUT /tm/projects/42 → projects:write with projectId", () => {
+    const m = matchRoute("PUT", "/tm/projects/42", new URLSearchParams());
     expect(m?.entry.verb).toBe("projects:write");
     expect(m?.params.projectId).toBe("42");
   });
 
-  test("DELETE /ws/projects/42 → projects:delete", () => {
-    const m = matchRoute("DELETE", "/ws/projects/42", new URLSearchParams());
+  test("DELETE /tm/projects/42 → projects:delete", () => {
+    const m = matchRoute("DELETE", "/tm/projects/42", new URLSearchParams());
     expect(m?.entry.verb).toBe("projects:delete");
-    expect(m?.params.projectId).toBe("42");
   });
 
-  test("POST /ws/boards → boards:write", () => {
-    const m = matchRoute("POST", "/ws/boards", new URLSearchParams());
+  test("POST /tm/projects/42/archive → projects:write", () => {
+    const m = matchRoute("POST", "/tm/projects/42/archive", new URLSearchParams());
+    expect(m?.entry.verb).toBe("projects:write");
+  });
+
+  test("POST /tm/projects/42/un-archive → projects:write", () => {
+    const m = matchRoute("POST", "/tm/projects/42/un-archive", new URLSearchParams());
+    expect(m?.entry.verb).toBe("projects:write");
+  });
+
+  test("POST /tm/boards → boards:write", () => {
+    const m = matchRoute("POST", "/tm/boards", new URLSearchParams());
     expect(m?.entry.verb).toBe("boards:write");
   });
 
-  test("PATCH /ws/boards/9 → boards:write", () => {
-    const m = matchRoute("PATCH", "/ws/boards/9", new URLSearchParams());
+  test("PUT /tm/boards/9 → boards:write with boardId", () => {
+    const m = matchRoute("PUT", "/tm/boards/9", new URLSearchParams());
     expect(m?.entry.verb).toBe("boards:write");
     expect(m?.params.boardId).toBe("9");
   });
 
-  test("DELETE /ws/boards/9 → boards:delete", () => {
-    const m = matchRoute("DELETE", "/ws/boards/9", new URLSearchParams());
+  test("DELETE /tm/boards/9 → boards:delete", () => {
+    const m = matchRoute("DELETE", "/tm/boards/9", new URLSearchParams());
     expect(m?.entry.verb).toBe("boards:delete");
   });
 
-  test("POST /ws/tasks → tasks:write", () => {
-    const m = matchRoute("POST", "/ws/tasks", new URLSearchParams());
+  test("POST /tm/tasks → tasks:write; flagged authorRewritable", () => {
+    const m = matchRoute("POST", "/tm/tasks", new URLSearchParams());
     expect(m?.entry.verb).toBe("tasks:write");
+    expect(m?.entry.flags?.authorRewritable).toBe(true);
   });
 
-  test("PATCH /ws/tasks/abc → tasks:write", () => {
-    const m = matchRoute("PATCH", "/ws/tasks/abc", new URLSearchParams());
+  test("PUT /tm/tasks/abc → tasks:write; flagged authorRewritable", () => {
+    const m = matchRoute("PUT", "/tm/tasks/abc", new URLSearchParams());
     expect(m?.entry.verb).toBe("tasks:write");
+    expect(m?.entry.flags?.authorRewritable).toBe(true);
   });
 
-  test("DELETE /ws/tasks/abc → tasks:delete", () => {
-    const m = matchRoute("DELETE", "/ws/tasks/abc", new URLSearchParams());
+  test("DELETE /tm/tasks/abc → tasks:delete", () => {
+    const m = matchRoute("DELETE", "/tm/tasks/abc", new URLSearchParams());
     expect(m?.entry.verb).toBe("tasks:delete");
   });
 
-  test("POST /ws/tasks/abc/complete → tasks:complete", () => {
-    const m = matchRoute("POST", "/ws/tasks/abc/complete", new URLSearchParams());
+  test("POST /tm/tasks/abc/complete → tasks:complete", () => {
+    const m = matchRoute("POST", "/tm/tasks/abc/complete", new URLSearchParams());
     expect(m?.entry.verb).toBe("tasks:complete");
   });
 
-  test("POST /ws/tasks/abc/move → tasks:move", () => {
-    const m = matchRoute("POST", "/ws/tasks/abc/move", new URLSearchParams());
+  test("POST /tm/tasks/abc/un-complete → tasks:complete", () => {
+    const m = matchRoute("POST", "/tm/tasks/abc/un-complete", new URLSearchParams());
+    expect(m?.entry.verb).toBe("tasks:complete");
+  });
+
+  test("POST /tm/tasks/abc/board → tasks:move", () => {
+    const m = matchRoute("POST", "/tm/tasks/abc/board", new URLSearchParams());
     expect(m?.entry.verb).toBe("tasks:move");
   });
 
-  test("POST /ws/tasks/abc/comments → comments:write", () => {
-    const m = matchRoute("POST", "/ws/tasks/abc/comments", new URLSearchParams());
-    expect(m?.entry.verb).toBe("comments:write");
+  test("POST /tm/tasks/abc/board-column → tasks:move", () => {
+    const m = matchRoute("POST", "/tm/tasks/abc/board-column", new URLSearchParams());
+    expect(m?.entry.verb).toBe("tasks:move");
   });
 
-  test("PATCH /ws/tasks/abc/comments/c1 → comments:write", () => {
-    const m = matchRoute("PATCH", "/ws/tasks/abc/comments/c1", new URLSearchParams());
-    expect(m?.entry.verb).toBe("comments:write");
-  });
-
-  test("DELETE /ws/tasks/abc/comments/c1 → comments:delete", () => {
-    const m = matchRoute("DELETE", "/ws/tasks/abc/comments/c1", new URLSearchParams());
-    expect(m?.entry.verb).toBe("comments:delete");
-  });
-
-  test("POST /ws/custom-fields → custom_fields:write", () => {
-    const m = matchRoute("POST", "/ws/custom-fields", new URLSearchParams());
+  test("POST /tm/custom-fields → custom_fields:write", () => {
+    const m = matchRoute("POST", "/tm/custom-fields", new URLSearchParams());
     expect(m?.entry.verb).toBe("custom_fields:write");
   });
 
-  test("PATCH /ws/custom-fields/cf1 → custom_fields:write", () => {
-    const m = matchRoute("PATCH", "/ws/custom-fields/cf1", new URLSearchParams());
+  test("PUT /tm/custom-fields/cf1 → custom_fields:write", () => {
+    const m = matchRoute("PUT", "/tm/custom-fields/cf1", new URLSearchParams());
     expect(m?.entry.verb).toBe("custom_fields:write");
   });
 
-  test("POST /ws/time-entries → time_entries:write", () => {
-    const m = matchRoute("POST", "/ws/time-entries", new URLSearchParams());
+  test("POST /tm/tasks/t1/time-entries → time_entries:write", () => {
+    const m = matchRoute("POST", "/tm/tasks/t1/time-entries", new URLSearchParams());
     expect(m?.entry.verb).toBe("time_entries:write");
   });
 
-  test("PATCH /ws/time-entries/te1 → time_entries:write", () => {
-    const m = matchRoute("PATCH", "/ws/time-entries/te1", new URLSearchParams());
+  test("PUT /tm/tasks/t1/time-entries/te1 → time_entries:write", () => {
+    const m = matchRoute("PUT", "/tm/tasks/t1/time-entries/te1", new URLSearchParams());
     expect(m?.entry.verb).toBe("time_entries:write");
   });
 
-  test("DELETE /ws/time-entries/te1 → time_entries:delete", () => {
-    const m = matchRoute("DELETE", "/ws/time-entries/te1", new URLSearchParams());
+  test("DELETE /tm/tasks/t1/time-entries/te1 → time_entries:delete", () => {
+    const m = matchRoute("DELETE", "/tm/tasks/t1/time-entries/te1", new URLSearchParams());
     expect(m?.entry.verb).toBe("time_entries:delete");
   });
 
-  test("POST /ws/members → null (members are read-only per verb catalogue)", () => {
-    const m = matchRoute("POST", "/ws/members", new URLSearchParams());
+  // --- Negative cases ---
+  test("PATCH /tm/tasks/abc → null (Weeek uses PUT, not PATCH)", () => {
+    const m = matchRoute("PATCH", "/tm/tasks/abc", new URLSearchParams());
     expect(m).toBeNull();
   });
 
-  test("DELETE /ws/custom-fields/cf1 → null (no custom_fields:delete verb)", () => {
-    const m = matchRoute("DELETE", "/ws/custom-fields/cf1", new URLSearchParams());
+  test("GET /ws/projects → null (projects live under /tm/, not /ws/)", () => {
+    const m = matchRoute("GET", "/ws/projects", new URLSearchParams());
     expect(m).toBeNull();
   });
 
-  // --- Phase 5c: route flags ---
-
-  test("GET /ws/tasks is flagged listEndpoint", () => {
-    const m = matchRoute("GET", "/ws/tasks", new URLSearchParams());
-    expect(m?.entry.flags?.listEndpoint).toBe(true);
+  test("GET /tm/tasks/abc/comments → null (comments not exposed in public API)", () => {
+    const m = matchRoute("GET", "/tm/tasks/abc/comments", new URLSearchParams());
+    expect(m).toBeNull();
   });
 
-  test("GET /ws/tasks/abc is NOT flagged listEndpoint", () => {
-    const m = matchRoute("GET", "/ws/tasks/abc", new URLSearchParams());
-    expect(m?.entry.flags?.listEndpoint).toBeFalsy();
+  test("POST /tm/tasks/abc/move → null (no /move endpoint; use /board or /board-column)", () => {
+    const m = matchRoute("POST", "/tm/tasks/abc/move", new URLSearchParams());
+    expect(m).toBeNull();
   });
 
-  test("GET /ws/tasks/abc/comments is flagged listEndpoint", () => {
-    const m = matchRoute("GET", "/ws/tasks/abc/comments", new URLSearchParams());
-    expect(m?.entry.flags?.listEndpoint).toBe(true);
-  });
-
-  test("GET /ws/time-entries is flagged listEndpoint", () => {
+  test("GET /ws/time-entries → null (time-entries are nested under tasks)", () => {
     const m = matchRoute("GET", "/ws/time-entries", new URLSearchParams());
-    expect(m?.entry.flags?.listEndpoint).toBe(true);
+    expect(m).toBeNull();
   });
 
-  test("POST /ws/tasks is flagged authorRewritable", () => {
-    const m = matchRoute("POST", "/ws/tasks", new URLSearchParams());
-    expect(m?.entry.flags?.authorRewritable).toBe(true);
+  test("DELETE /tm/custom-fields/cf1 → custom_fields:write (no separate :delete verb for custom_fields)", () => {
+    const m = matchRoute("DELETE", "/tm/custom-fields/cf1", new URLSearchParams());
+    expect(m?.entry.verb).toBe("custom_fields:write");
   });
 
-  test("PATCH /ws/tasks/abc is flagged authorRewritable", () => {
-    const m = matchRoute("PATCH", "/ws/tasks/abc", new URLSearchParams());
-    expect(m?.entry.flags?.authorRewritable).toBe(true);
+  test("GET /not-a-prefix/projects → null", () => {
+    const m = matchRoute("GET", "/not-a-prefix/projects", new URLSearchParams());
+    expect(m).toBeNull();
   });
 
-  test("POST /ws/tasks/abc/comments is flagged authorRewritable", () => {
-    const m = matchRoute("POST", "/ws/tasks/abc/comments", new URLSearchParams());
-    expect(m?.entry.flags?.authorRewritable).toBe(true);
-  });
-
-  test("DELETE /ws/tasks/abc is NOT flagged authorRewritable", () => {
-    const m = matchRoute("DELETE", "/ws/tasks/abc", new URLSearchParams());
-    expect(m?.entry.flags?.authorRewritable).toBeFalsy();
-  });
-
+  // --- Snapshot ---
   test("table snapshot — surfaces drift when new endpoints land", () => {
     expect(
       ROUTE_TABLE.map((e) => `${e.method} ${e.pattern.source} → ${e.verb}`).sort(),

@@ -15,7 +15,7 @@ export type RouteParams = {
 };
 
 export type RouteEntry = {
-  method: "GET" | "POST" | "PATCH" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   pattern: RegExp;
   resource: ResourceKind;
   verb: Verb;
