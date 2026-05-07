@@ -227,4 +227,66 @@ describe("subKey router", () => {
     expect((got as Record<string, unknown>).hash).toBeUndefined();
     expect((got as Record<string, unknown>).rawKey).toBeUndefined();
   });
+
+  test("create with explicit scopeProjects/scopeBoards persists them", async () => {
+    const uid = `sk-user-${Date.now()}-scope`;
+    await seedUser(uid, `${uid}@example.com`);
+    const wsId = await seedWorkspaceForUser(uid, "WS scope");
+    const caller = await makeCaller(uid);
+    const created = await caller.subKey.create({
+      workspaceId: wsId,
+      label: "scoped",
+      preset: "read-only",
+      scopeProjects: ["p1", "p2"],
+      scopeBoards: ["b1"],
+    });
+    expect(created.subKey.scopeProjects).toEqual(["p1", "p2"]);
+    expect(created.subKey.scopeBoards).toEqual(["b1"]);
+  });
+
+  test("create defaults scope to ['*'] when omitted (backwards-compat)", async () => {
+    const uid = `sk-user-${Date.now()}-scope-default`;
+    await seedUser(uid, `${uid}@example.com`);
+    const wsId = await seedWorkspaceForUser(uid, "WS scope default");
+    const caller = await makeCaller(uid);
+    const created = await caller.subKey.create({
+      workspaceId: wsId,
+      label: "no scope",
+      preset: "read-only",
+    });
+    expect(created.subKey.scopeProjects).toEqual(["*"]);
+    expect(created.subKey.scopeBoards).toEqual(["*"]);
+  });
+
+  test("create rejects empty scopeProjects array", async () => {
+    const uid = `sk-user-${Date.now()}-scope-empty`;
+    await seedUser(uid, `${uid}@example.com`);
+    const wsId = await seedWorkspaceForUser(uid, "WS scope empty");
+    const caller = await makeCaller(uid);
+    await expect(
+      caller.subKey.create({
+        workspaceId: wsId,
+        label: "empty",
+        preset: "read-only",
+        scopeProjects: [],
+        scopeBoards: ["*"],
+      }),
+    ).rejects.toThrow();
+  });
+
+  test("create rejects empty scopeBoards array", async () => {
+    const uid = `sk-user-${Date.now()}-scope-empty-b`;
+    await seedUser(uid, `${uid}@example.com`);
+    const wsId = await seedWorkspaceForUser(uid, "WS scope empty b");
+    const caller = await makeCaller(uid);
+    await expect(
+      caller.subKey.create({
+        workspaceId: wsId,
+        label: "empty b",
+        preset: "read-only",
+        scopeProjects: ["*"],
+        scopeBoards: [],
+      }),
+    ).rejects.toThrow();
+  });
 });

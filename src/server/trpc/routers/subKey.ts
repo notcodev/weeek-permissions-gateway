@@ -12,10 +12,15 @@ import { protectedProcedure, router } from "../init";
 const presetEnum = z.enum(PRESET_KEYS);
 
 const listInput = z.object({ workspaceId: z.string().min(1) });
+const scopeArrayInput = z
+  .array(z.string().min(1))
+  .min(1, "Must include at least one id, or '*' for wildcard");
 const createInput = z.object({
   workspaceId: z.string().min(1),
   label: z.string().trim().min(1, "Label is required").max(80),
   preset: presetEnum,
+  scopeProjects: scopeArrayInput.optional(),
+  scopeBoards: scopeArrayInput.optional(),
 });
 const revokeInput = z.object({ id: z.string().min(1) });
 const getInput = z.object({ id: z.string().min(1) });
@@ -121,11 +126,8 @@ export const subKeyRouter = router({
           hash,
           last4,
           status: "active",
-          // TODO(phase-5): accept scope_projects/scope_boards from the wizard
-          // once project/board pickers ship. Until then everything is unscoped
-          // and the proxy's scope check trivially allows.
-          scopeProjects: ["*"],
-          scopeBoards: ["*"],
+          scopeProjects: input.scopeProjects ?? ["*"],
+          scopeBoards: input.scopeBoards ?? ["*"],
           verbs,
           createdAt: now,
         })
