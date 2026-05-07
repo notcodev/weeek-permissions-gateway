@@ -4,6 +4,7 @@ import { workspaceRouter } from "./workspace";
 import { subKeyRouter } from "./subKey";
 import { weeekDirectoryRouter } from "./weeekDirectory";
 import { auditRouter } from "./audit";
+import { orgRouter } from "./org";
 
 export const appRouter = router({
   me: meRouter,
@@ -11,5 +12,6 @@ export const appRouter = router({
   subKey: subKeyRouter,
   weeekDirectory: weeekDirectoryRouter,
   audit: auditRouter,
+  org: orgRouter,
 });
 export type AppRouter = typeof appRouter;
