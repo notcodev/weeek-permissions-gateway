@@ -52,6 +52,7 @@ export const ROUTE_TABLE: readonly RouteEntry[] = [
     resource: "tasks",
     verb: "tasks:read",
     extractParams: fromQuery(["projectId", "boardId"]),
+    flags: { listEndpoint: true },
   },
   {
     method: "GET",
@@ -67,6 +68,7 @@ export const ROUTE_TABLE: readonly RouteEntry[] = [
     resource: "comments",
     verb: "comments:read",
     extractParams: () => ({}),
+    flags: { listEndpoint: true },
   },
   // Members
   {
@@ -91,6 +93,7 @@ export const ROUTE_TABLE: readonly RouteEntry[] = [
     resource: "time_entries",
     verb: "time_entries:read",
     extractParams: fromQuery(["projectId"]),
+    flags: { listEndpoint: true },
   },
 
   // --- Phase 5a write/delete entries ---
@@ -150,6 +153,7 @@ export const ROUTE_TABLE: readonly RouteEntry[] = [
     resource: "tasks",
     verb: "tasks:write",
     extractParams: fromQuery(["projectId", "boardId"]),
+    flags: { authorRewritable: true },
   },
   {
     method: "PATCH",
@@ -157,6 +161,7 @@ export const ROUTE_TABLE: readonly RouteEntry[] = [
     resource: "tasks",
     verb: "tasks:write",
     extractParams: () => ({}),
+    flags: { authorRewritable: true },
   },
   {
     method: "DELETE",
@@ -187,6 +192,7 @@ export const ROUTE_TABLE: readonly RouteEntry[] = [
     resource: "comments",
     verb: "comments:write",
     extractParams: () => ({}),
+    flags: { authorRewritable: true },
   },
   {
     method: "PATCH",
@@ -194,6 +200,7 @@ export const ROUTE_TABLE: readonly RouteEntry[] = [
     resource: "comments",
     verb: "comments:write",
     extractParams: () => ({}),
+    flags: { authorRewritable: true },
   },
   {
     method: "DELETE",

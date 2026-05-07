@@ -179,6 +179,48 @@ describe("matchRoute", () => {
     expect(m).toBeNull();
   });
 
+  // --- Phase 5c: route flags ---
+
+  test("GET /ws/tasks is flagged listEndpoint", () => {
+    const m = matchRoute("GET", "/ws/tasks", new URLSearchParams());
+    expect(m?.entry.flags?.listEndpoint).toBe(true);
+  });
+
+  test("GET /ws/tasks/abc is NOT flagged listEndpoint", () => {
+    const m = matchRoute("GET", "/ws/tasks/abc", new URLSearchParams());
+    expect(m?.entry.flags?.listEndpoint).toBeFalsy();
+  });
+
+  test("GET /ws/tasks/abc/comments is flagged listEndpoint", () => {
+    const m = matchRoute("GET", "/ws/tasks/abc/comments", new URLSearchParams());
+    expect(m?.entry.flags?.listEndpoint).toBe(true);
+  });
+
+  test("GET /ws/time-entries is flagged listEndpoint", () => {
+    const m = matchRoute("GET", "/ws/time-entries", new URLSearchParams());
+    expect(m?.entry.flags?.listEndpoint).toBe(true);
+  });
+
+  test("POST /ws/tasks is flagged authorRewritable", () => {
+    const m = matchRoute("POST", "/ws/tasks", new URLSearchParams());
+    expect(m?.entry.flags?.authorRewritable).toBe(true);
+  });
+
+  test("PATCH /ws/tasks/abc is flagged authorRewritable", () => {
+    const m = matchRoute("PATCH", "/ws/tasks/abc", new URLSearchParams());
+    expect(m?.entry.flags?.authorRewritable).toBe(true);
+  });
+
+  test("POST /ws/tasks/abc/comments is flagged authorRewritable", () => {
+    const m = matchRoute("POST", "/ws/tasks/abc/comments", new URLSearchParams());
+    expect(m?.entry.flags?.authorRewritable).toBe(true);
+  });
+
+  test("DELETE /ws/tasks/abc is NOT flagged authorRewritable", () => {
+    const m = matchRoute("DELETE", "/ws/tasks/abc", new URLSearchParams());
+    expect(m?.entry.flags?.authorRewritable).toBeFalsy();
+  });
+
   test("table snapshot — surfaces drift when new endpoints land", () => {
     expect(
       ROUTE_TABLE.map((e) => `${e.method} ${e.pattern.source} → ${e.verb}`).sort(),
