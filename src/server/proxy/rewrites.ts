@@ -1,11 +1,12 @@
 import type { AuthedRequest, RouteMatch } from "./types";
 
-// TODO(verify): confirm against Weeek API docs. Single source of truth for both
-// the visibility-filter query param and the author-rewrite body field. Spec §19
-// flags both as open questions; phase-5c pins them to "assigneeId" as the most
-// likely Weeek field given the validate path uses `/ws/members?limit=1` etc.
-const ASSIGNEE_QUERY_PARAM = "assigneeId";
-const ASSIGNEE_BODY_FIELD = "assigneeId";
+// Single source of truth for the visibility-filter query param and the
+// author-rewrite body field. Verified against the Weeek public API spec
+// (https://api.weeek.net/public/v1):
+//   - GET /tm/tasks accepts `userId` as the assignee/author filter.
+//   - POST /tm/tasks accepts `userId` as the task author/assignee field.
+const ASSIGNEE_QUERY_PARAM = "userId";
+const ASSIGNEE_BODY_FIELD = "userId";
 
 export function applyVisibilityFilter(
   url: URL,

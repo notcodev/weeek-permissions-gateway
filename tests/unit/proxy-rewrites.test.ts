@@ -33,23 +33,23 @@ const matchWith = (
   }) as RouteMatch;
 
 describe("applyVisibilityFilter", () => {
-  test("injects assigneeId when listEndpoint + visibilityBound + boundWeeekUserId", () => {
+  test("injects userId when listEndpoint + visibilityBound + boundWeeekUserId", () => {
     const url = new URL("https://gw.test/ws/tasks?status=open");
     applyVisibilityFilter(url, matchWith({ listEndpoint: true }), baseSub({ visibilityBound: true }));
-    expect(url.searchParams.get("assigneeId")).toBe("u-42");
+    expect(url.searchParams.get("userId")).toBe("u-42");
     expect(url.searchParams.get("status")).toBe("open");
   });
 
   test("no-op when visibilityBound is false", () => {
     const url = new URL("https://gw.test/ws/tasks");
     applyVisibilityFilter(url, matchWith({ listEndpoint: true }), baseSub({ visibilityBound: false }));
-    expect(url.searchParams.get("assigneeId")).toBeNull();
+    expect(url.searchParams.get("userId")).toBeNull();
   });
 
   test("no-op when route is not flagged listEndpoint", () => {
     const url = new URL("https://gw.test/ws/tasks/abc");
     applyVisibilityFilter(url, matchWith({}), baseSub({ visibilityBound: true }));
-    expect(url.searchParams.get("assigneeId")).toBeNull();
+    expect(url.searchParams.get("userId")).toBeNull();
   });
 
   test("no-op when boundWeeekUserId is null", () => {
@@ -59,18 +59,18 @@ describe("applyVisibilityFilter", () => {
       matchWith({ listEndpoint: true }),
       baseSub({ visibilityBound: true, boundWeeekUserId: null }),
     );
-    expect(url.searchParams.get("assigneeId")).toBeNull();
+    expect(url.searchParams.get("userId")).toBeNull();
   });
 
-  test("does not overwrite caller-provided assigneeId", () => {
-    const url = new URL("https://gw.test/ws/tasks?assigneeId=u-99");
+  test("does not overwrite caller-provided userId", () => {
+    const url = new URL("https://gw.test/ws/tasks?userId=u-99");
     applyVisibilityFilter(url, matchWith({ listEndpoint: true }), baseSub({ visibilityBound: true }));
-    expect(url.searchParams.get("assigneeId")).toBe("u-99");
+    expect(url.searchParams.get("userId")).toBe("u-99");
   });
 });
 
 describe("rewriteAuthor", () => {
-  test("injects assigneeId when JSON body + authorRewrite + authorRewritable + field absent", async () => {
+  test("injects userId when JSON body + authorRewrite + authorRewritable + field absent", async () => {
     const out = await rewriteAuthor(
       JSON.stringify({ title: "x" }),
       "application/json",
@@ -79,18 +79,18 @@ describe("rewriteAuthor", () => {
     );
     expect(out.body).not.toBeNull();
     const parsed = JSON.parse(out.body as string);
-    expect(parsed).toEqual({ title: "x", assigneeId: "u-42" });
+    expect(parsed).toEqual({ title: "x", userId: "u-42" });
   });
 
-  test("does NOT overwrite existing assigneeId in the body", async () => {
+  test("does NOT overwrite existing userId in the body", async () => {
     const out = await rewriteAuthor(
-      JSON.stringify({ title: "x", assigneeId: "u-self-pick" }),
+      JSON.stringify({ title: "x", userId: "u-self-pick" }),
       "application/json",
       matchWith({ authorRewritable: true }, "POST"),
       baseSub({ authorRewrite: true }),
     );
     const parsed = JSON.parse(out.body as string);
-    expect(parsed.assigneeId).toBe("u-self-pick");
+    expect(parsed.userId).toBe("u-self-pick");
   });
 
   test("no-op when authorRewrite is false", async () => {
