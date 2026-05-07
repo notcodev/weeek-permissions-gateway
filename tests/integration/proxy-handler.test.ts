@@ -320,4 +320,159 @@ describe("proxy handler matrix", () => {
     expect(observedMethod).toBe("PATCH");
     expect(observedBody).toEqual({ title: "renamed" });
   });
+
+  // --- Phase 5c: visibility filter + author rewrite ---
+
+  async function setupBound(opts: { visibilityBound: boolean; authorRewrite: boolean }) {
+    const seeded = await setup("full-access");
+    const { db } = await import("@/server/db/client");
+    const { subKey } = await import("@/server/db/schema/subKey");
+    const { eq } = await import("drizzle-orm");
+    await db
+      .update(subKey)
+      .set({
+        boundWeeekUserId: "u-bound",
+        boundWeeekUserName: "BoundUser",
+        visibilityBound: opts.visibilityBound,
+        authorRewrite: opts.authorRewrite,
+      })
+      .where(eq(subKey.id, seeded.subKeyId));
+    return seeded;
+  }
+
+  test("GET /ws/tasks injects assigneeId when visibilityBound", async () => {
+    const seeded = await setupBound({ visibilityBound: true, authorRewrite: false });
+    let observedQuery: string | null = null;
+    server.use(
+      http.get(`${WEEEK_BASE}/ws/tasks`, ({ request }) => {
+        observedQuery = new URL(request.url).search;
+        return HttpResponse.json({ tasks: [] });
+      }),
+    );
+    const { proxy } = await import("@/server/proxy/handler");
+    const headers = new Headers();
+    headers.set("authorization", `Bearer ${seeded.rawKey}`);
+    const res = await proxy(
+      new Request("https://gw.test/api/v1/ws/tasks", { method: "GET", headers }),
+    );
+    expect(res.status).toBe(200);
+    expect(observedQuery).toContain("assigneeId=u-bound");
+  });
+
+  test("GET /ws/tasks/abc does NOT inject assigneeId (single resource, not list)", async () => {
+    const seeded = await setupBound({ visibilityBound: true, authorRewrite: false });
+    let observedQuery: string | null = null;
+    server.use(
+      http.get(`${WEEEK_BASE}/ws/tasks/abc`, ({ request }) => {
+        observedQuery = new URL(request.url).search;
+        return HttpResponse.json({ id: "abc" });
+      }),
+    );
+    const { proxy } = await import("@/server/proxy/handler");
+    const headers = new Headers();
+    headers.set("authorization", `Bearer ${seeded.rawKey}`);
+    const res = await proxy(
+      new Request("https://gw.test/api/v1/ws/tasks/abc", { method: "GET", headers }),
+    );
+    expect(res.status).toBe(200);
+    expect(observedQuery).toBe("");
+  });
+
+  test("GET /ws/projects does NOT inject assigneeId (resource not in spec list)", async () => {
+    const seeded = await setupBound({ visibilityBound: true, authorRewrite: false });
+    let observedQuery: string | null = null;
+    server.use(
+      http.get(`${WEEEK_BASE}/ws/projects`, ({ request }) => {
+        observedQuery = new URL(request.url).search;
+        return HttpResponse.json({ projects: [] });
+      }),
+    );
+    const { proxy } = await import("@/server/proxy/handler");
+    const headers = new Headers();
+    headers.set("authorization", `Bearer ${seeded.rawKey}`);
+    const res = await proxy(
+      new Request("https://gw.test/api/v1/ws/projects", { method: "GET", headers }),
+    );
+    expect(res.status).toBe(200);
+    expect(observedQuery).toBe("");
+  });
+
+  test("POST /ws/tasks injects assigneeId in body when authorRewrite", async () => {
+    const seeded = await setupBound({ visibilityBound: false, authorRewrite: true });
+    let observedBody: unknown;
+    server.use(
+      http.post(`${WEEEK_BASE}/ws/tasks`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({ id: "task_new" });
+      }),
+    );
+    const { proxy } = await import("@/server/proxy/handler");
+    const headers = new Headers();
+    headers.set("authorization", `Bearer ${seeded.rawKey}`);
+    headers.set("content-type", "application/json");
+    const res = await proxy(
+      new Request("https://gw.test/api/v1/ws/tasks", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: "hello" }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(observedBody).toEqual({ title: "hello", assigneeId: "u-bound" });
+  });
+
+  test("POST /ws/tasks does NOT overwrite caller-provided assigneeId", async () => {
+    const seeded = await setupBound({ visibilityBound: false, authorRewrite: true });
+    let observedBody: unknown;
+    server.use(
+      http.post(`${WEEEK_BASE}/ws/tasks`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({ id: "x" });
+      }),
+    );
+    const { proxy } = await import("@/server/proxy/handler");
+    const headers = new Headers();
+    headers.set("authorization", `Bearer ${seeded.rawKey}`);
+    headers.set("content-type", "application/json");
+    const res = await proxy(
+      new Request("https://gw.test/api/v1/ws/tasks", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: "x", assigneeId: "u-self" }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(observedBody).toEqual({ title: "x", assigneeId: "u-self" });
+  });
+
+  test("flags off: no rewrite happens", async () => {
+    const seeded = await setupBound({ visibilityBound: false, authorRewrite: false });
+    let observedQuery: string | null = null;
+    let observedBody: unknown;
+    server.use(
+      http.get(`${WEEEK_BASE}/ws/tasks`, ({ request }) => {
+        observedQuery = new URL(request.url).search;
+        return HttpResponse.json({ tasks: [] });
+      }),
+      http.post(`${WEEEK_BASE}/ws/tasks`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({ id: "x" });
+      }),
+    );
+    const { proxy } = await import("@/server/proxy/handler");
+    const headers = new Headers();
+    headers.set("authorization", `Bearer ${seeded.rawKey}`);
+    headers.set("content-type", "application/json");
+    await proxy(new Request("https://gw.test/api/v1/ws/tasks", { method: "GET", headers }));
+    expect(observedQuery).toBe("");
+
+    await proxy(
+      new Request("https://gw.test/api/v1/ws/tasks", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: "x" }),
+      }),
+    );
+    expect(observedBody).toEqual({ title: "x" });
+  });
 });

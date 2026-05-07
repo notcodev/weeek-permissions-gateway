@@ -5,6 +5,7 @@ import { recordUsage } from "./audit";
 import { errorResponse } from "./errors";
 import { forward } from "./forward";
 import { evaluate } from "./policyEval";
+import { applyVisibilityFilter, rewriteAuthor } from "./rewrites";
 import { matchRoute } from "./routeTable";
 
 const STATUS_FOR_DENY = {
@@ -18,7 +19,6 @@ export async function proxy(req: Request): Promise<Response> {
   const url = new URL(req.url);
   // Strip the /api/v1 prefix; the route table is keyed off Weeek's `/ws/*` paths.
   const proxiedPath = url.pathname.replace(/^\/api\/v1/, "");
-  const search = url.search;
   const method = req.method.toUpperCase();
   const log = logger.child({ requestId, method, path: proxiedPath });
 
@@ -67,19 +67,40 @@ export async function proxy(req: Request): Promise<Response> {
     });
   }
 
-  // 4. Forward
+  // 4a. Rewrites — visibility filter (mutates url query in place).
+  applyVisibilityFilter(url, match, authed);
+
+  // 4b. Rewrites — author rewrite. Only consume the body when the rewrite is
+  // actually live; reads keep their streamed body for everything else.
+  let outboundBody: BodyInit | null = req.body;
+  if (
+    match.entry.flags?.authorRewritable &&
+    authed.authorRewrite &&
+    authed.boundWeeekUserId
+  ) {
+    const text = await req.text();
+    const rewritten = await rewriteAuthor(
+      text === "" ? null : text,
+      req.headers.get("content-type"),
+      match,
+      authed,
+    );
+    outboundBody = rewritten.body;
+  }
+
+  // 5. Forward
   const upstream = await forward({
     masterKey: authed.masterKey,
     pathname: proxiedPath,
-    search,
+    search: url.search,
     method,
     headers: req.headers,
-    body: req.body,
+    body: outboundBody,
     requestId,
     subKeyId: authed.subKeyShortId,
   });
 
-  // 5. Audit (fire-and-forget — never blocks the response).
+  // 6. Audit (fire-and-forget — never blocks the response).
   void recordUsage(authed.subKeyId);
 
   // Read and strip the internal marker set by forward() to distinguish
