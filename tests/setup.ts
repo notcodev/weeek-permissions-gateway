@@ -15,6 +15,7 @@ beforeAll(async () => {
   process.env.DATABASE_URL = pg.getConnectionUri();
   process.env.BETTER_AUTH_SECRET ||= "test-secret-only-for-unit-tests-32by";
   process.env.FINGERPRINT_HMAC_PEPPER ||= randomBytes(32).toString("base64");
+  process.env.SUB_KEY_HMAC_PEPPER ||= randomBytes(32).toString("base64");
   process.env.BETTER_AUTH_URL ||= "http://localhost:3000";
 
   execSync("pnpm db:migrate", { stdio: "inherit", env: process.env });
