@@ -1,0 +1,16 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`matchRoute > table snapshot — surfaces drift when new endpoints land 1`] = `
+[
+  "GET ^\\/ws\\/boards$ → boards:read",
+  "GET ^\\/ws\\/boards\\/([^/]+)$ → boards:read",
+  "GET ^\\/ws\\/custom-fields$ → custom_fields:read",
+  "GET ^\\/ws\\/members$ → members:read",
+  "GET ^\\/ws\\/projects$ → projects:read",
+  "GET ^\\/ws\\/projects\\/([^/]+)$ → projects:read",
+  "GET ^\\/ws\\/tasks$ → tasks:read",
+  "GET ^\\/ws\\/tasks\\/([^/]+)$ → tasks:read",
+  "GET ^\\/ws\\/tasks\\/([^/]+)\\/comments$ → comments:read",
+  "GET ^\\/ws\\/time-entries$ → time_entries:read",
+]
+`;
