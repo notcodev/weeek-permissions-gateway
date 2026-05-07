@@ -19,6 +19,9 @@ export const session = pgTable("session", {
   token: text("token").notNull().unique(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
+  // Better Auth organization() plugin writes the active org id here when the
+  // user switches owner-context. Null means "personal context".
+  activeOrganizationId: text("active_organization_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
