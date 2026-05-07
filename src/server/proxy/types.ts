@@ -21,6 +21,12 @@ export type RouteEntry = {
   verb: Verb;
   /** Pull projectId/boardId out of the matched URL for future scope checks. */
   extractParams: (match: RegExpMatchArray, search: URLSearchParams) => RouteParams;
+  flags?: {
+    /** List endpoint that supports the visibility (assignee) filter injection. */
+    listEndpoint?: boolean;
+    /** Write endpoint that supports the author rewrite when authorRewrite is on. */
+    authorRewritable?: boolean;
+  };
 };
 
 export type RouteMatch = {
@@ -36,6 +42,9 @@ export type AuthedRequest = {
   verbs: readonly string[];
   scopeProjects: readonly string[];
   scopeBoards: readonly string[];
+  boundWeeekUserId: string | null;
+  visibilityBound: boolean;
+  authorRewrite: boolean;
   masterKey: string;
 };
 

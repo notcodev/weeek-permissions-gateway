@@ -9,6 +9,9 @@ const baseSub = (overrides: Partial<AuthedRequest> = {}): AuthedRequest => ({
   verbs: ["tasks:read", "projects:read"],
   scopeProjects: ["*"],
   scopeBoards: ["*"],
+  boundWeeekUserId: null,
+  visibilityBound: false,
+  authorRewrite: false,
   masterKey: "wk_secret",
   ...overrides,
 });

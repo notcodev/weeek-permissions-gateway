@@ -70,6 +70,9 @@ export async function authenticateBearer(req: Request): Promise<AuthResult> {
       verbs: row.sk.verbs,
       scopeProjects: row.sk.scopeProjects,
       scopeBoards: row.sk.scopeBoards,
+      boundWeeekUserId: row.sk.boundWeeekUserId,
+      visibilityBound: row.sk.visibilityBound,
+      authorRewrite: row.sk.authorRewrite,
       masterKey,
     },
   };
