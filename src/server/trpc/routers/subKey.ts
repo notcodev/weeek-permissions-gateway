@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { z } from "zod";
 import { db } from "@/server/db/client";
@@ -121,6 +121,9 @@ export const subKeyRouter = router({
           hash,
           last4,
           status: "active",
+          // TODO(phase-5): accept scope_projects/scope_boards from the wizard
+          // once project/board pickers ship. Until then everything is unscoped
+          // and the proxy's scope check trivially allows.
           scopeProjects: ["*"],
           scopeBoards: ["*"],
           verbs,
@@ -133,50 +136,78 @@ export const subKeyRouter = router({
     }),
 
   revoke: protectedProcedure.input(revokeInput).mutation(async ({ ctx, input }) => {
-    const [target] = await db
-      .select({
-        id: subKey.id,
-        status: subKey.status,
-        ownerType: weeekWorkspace.ownerType,
-        ownerId: weeekWorkspace.ownerId,
-      })
-      .from(subKey)
-      .innerJoin(weeekWorkspace, eq(weeekWorkspace.id, subKey.workspaceId))
-      .where(eq(subKey.id, input.id))
-      .limit(1);
-
-    if (!target || target.ownerType !== "user" || target.ownerId !== ctx.session.user.id) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Sub-key not found" });
-    }
-    if (target.status === "revoked") {
-      return { ok: true as const };
-    }
-
-    await db
+    const result = await db
       .update(subKey)
       .set({
         status: "revoked",
         revokedAt: new Date(),
         revokedByUserId: ctx.session.user.id,
       })
-      .where(eq(subKey.id, input.id));
-    return { ok: true as const };
+      .where(
+        and(
+          eq(subKey.id, input.id),
+          eq(subKey.status, "active"),
+          inArray(
+            subKey.workspaceId,
+            db
+              .select({ id: weeekWorkspace.id })
+              .from(weeekWorkspace)
+              .where(
+                and(
+                  eq(weeekWorkspace.ownerType, "user"),
+                  eq(weeekWorkspace.ownerId, ctx.session.user.id),
+                ),
+              ),
+          ),
+        ),
+      )
+      .returning({ id: subKey.id });
+
+    if (result.length > 0) {
+      return { ok: true as const };
+    }
+
+    // Either: not owned (NOT_FOUND) OR already revoked (idempotent).
+    const [existing] = await db
+      .select({ id: subKey.id, status: subKey.status })
+      .from(subKey)
+      .innerJoin(weeekWorkspace, eq(weeekWorkspace.id, subKey.workspaceId))
+      .where(
+        and(
+          eq(subKey.id, input.id),
+          eq(weeekWorkspace.ownerType, "user"),
+          eq(weeekWorkspace.ownerId, ctx.session.user.id),
+        ),
+      )
+      .limit(1);
+
+    if (existing?.status === "revoked") return { ok: true as const };
+    throw new TRPCError({ code: "NOT_FOUND", message: "Sub-key not found" });
   }),
 
   get: protectedProcedure.input(getInput).query(async ({ ctx, input }): Promise<SubKeyPublic> => {
     const [row] = await db
-      .select({
-        row: subKey,
-        ownerType: weeekWorkspace.ownerType,
-        ownerId: weeekWorkspace.ownerId,
-      })
+      .select()
       .from(subKey)
-      .innerJoin(weeekWorkspace, eq(weeekWorkspace.id, subKey.workspaceId))
-      .where(eq(subKey.id, input.id))
+      .where(
+        and(
+          eq(subKey.id, input.id),
+          inArray(
+            subKey.workspaceId,
+            db
+              .select({ id: weeekWorkspace.id })
+              .from(weeekWorkspace)
+              .where(
+                and(
+                  eq(weeekWorkspace.ownerType, "user"),
+                  eq(weeekWorkspace.ownerId, ctx.session.user.id),
+                ),
+              ),
+          ),
+        ),
+      )
       .limit(1);
-    if (!row || row.ownerType !== "user" || row.ownerId !== ctx.session.user.id) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Sub-key not found" });
-    }
-    return toPublic(row.row);
+    if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Sub-key not found" });
+    return toPublic(row);
   }),
 });
