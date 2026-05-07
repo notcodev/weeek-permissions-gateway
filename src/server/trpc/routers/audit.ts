@@ -4,7 +4,9 @@ import { z } from "zod";
 import { db } from "@/server/db/client";
 import { auditLog } from "@/server/db/schema/auditLog";
 import { weeekWorkspace } from "@/server/db/schema/workspace";
+import { resolveOwnerContext } from "../ownerContext";
 import { protectedProcedure, router } from "../init";
+import type { TRPCContext } from "../init";
 
 const DEFAULT_PERIOD_DAYS = 7;
 const DEFAULT_LIMIT = 50;
@@ -77,15 +79,19 @@ function toPublic(row: typeof auditLog.$inferSelect): AuditPublic {
   };
 }
 
-async function assertOwnership(workspaceId: string, userId: string): Promise<void> {
+async function assertOwnership(
+  workspaceId: string,
+  session: NonNullable<TRPCContext["session"]>,
+): Promise<void> {
+  const owner = await resolveOwnerContext(session);
   const [row] = await db
     .select({ id: weeekWorkspace.id })
     .from(weeekWorkspace)
     .where(
       and(
         eq(weeekWorkspace.id, workspaceId),
-        eq(weeekWorkspace.ownerType, "user"),
-        eq(weeekWorkspace.ownerId, userId),
+        eq(weeekWorkspace.ownerType, owner.ownerType),
+        eq(weeekWorkspace.ownerId, owner.ownerId),
       ),
     )
     .limit(1);
@@ -102,7 +108,7 @@ function periodBounds(from?: string, to?: string): { fromDate: Date; toDate: Dat
 
 export const auditRouter = router({
   search: protectedProcedure.input(searchInput).query(async ({ ctx, input }) => {
-    await assertOwnership(input.workspaceId, ctx.session.user.id);
+    await assertOwnership(input.workspaceId, ctx.session);
 
     const { fromDate, toDate } = periodBounds(input.from, input.to);
     const limit = input.limit ?? DEFAULT_LIMIT;
@@ -146,7 +152,7 @@ export const auditRouter = router({
   }),
 
   stats: protectedProcedure.input(statsInput).query(async ({ ctx, input }) => {
-    await assertOwnership(input.workspaceId, ctx.session.user.id);
+    await assertOwnership(input.workspaceId, ctx.session);
     const { fromDate, toDate } = periodBounds(input.from, input.to);
 
     const baseFilter = and(

@@ -6,11 +6,17 @@ import { weeekWorkspace } from "@/server/db/schema/workspace";
 import { decrypt } from "@/server/crypto/aesGcm";
 import { fetchBoards, fetchMembers, fetchProjects } from "@/server/weeek/directory";
 import { getOrFetch } from "@/server/weeek/cache";
+import { resolveOwnerContext } from "../ownerContext";
 import { protectedProcedure, router } from "../init";
+import type { TRPCContext } from "../init";
 
 const TTL_MS = 60_000;
 
-async function loadMasterKey(workspaceId: string, userId: string): Promise<string> {
+async function loadMasterKey(
+  workspaceId: string,
+  session: NonNullable<TRPCContext["session"]>,
+): Promise<string> {
+  const owner = await resolveOwnerContext(session);
   const [row] = await db
     .select({
       ciphertext: weeekWorkspace.masterKeyCiphertext,
@@ -22,8 +28,8 @@ async function loadMasterKey(workspaceId: string, userId: string): Promise<strin
     .where(
       and(
         eq(weeekWorkspace.id, workspaceId),
-        eq(weeekWorkspace.ownerType, "user"),
-        eq(weeekWorkspace.ownerId, userId),
+        eq(weeekWorkspace.ownerType, owner.ownerType),
+        eq(weeekWorkspace.ownerId, owner.ownerId),
       ),
     )
     .limit(1);
@@ -45,18 +51,18 @@ const membersInput = z.object({ workspaceId: z.string().min(1) });
 
 export const weeekDirectoryRouter = router({
   projects: protectedProcedure.input(projectsInput).query(async ({ ctx, input }) => {
-    const masterKey = await loadMasterKey(input.workspaceId, ctx.session.user.id);
+    const masterKey = await loadMasterKey(input.workspaceId, ctx.session);
     return getOrFetch(`projects:${input.workspaceId}`, TTL_MS, () => fetchProjects(masterKey));
   }),
 
   boards: protectedProcedure.input(boardsInput).query(async ({ ctx, input }) => {
-    const masterKey = await loadMasterKey(input.workspaceId, ctx.session.user.id);
+    const masterKey = await loadMasterKey(input.workspaceId, ctx.session);
     const cacheKey = `boards:${input.workspaceId}:${input.projectId ?? "*"}`;
     return getOrFetch(cacheKey, TTL_MS, () => fetchBoards(masterKey, input.projectId));
   }),
 
   members: protectedProcedure.input(membersInput).query(async ({ ctx, input }) => {
-    const masterKey = await loadMasterKey(input.workspaceId, ctx.session.user.id);
+    const masterKey = await loadMasterKey(input.workspaceId, ctx.session);
     return getOrFetch(`members:${input.workspaceId}`, TTL_MS, () => fetchMembers(masterKey));
   }),
 });
