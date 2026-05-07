@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,7 +78,11 @@ export function WorkspacesTable({ initialWorkspaces }: Props) {
             <TableBody>
               {sorted.map((w) => (
                 <TableRow key={w.id}>
-                  <TableCell className="font-medium">{w.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link href={`/workspaces/${w.id}/keys`} className="hover:underline">
+                      {w.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="font-mono">
                       …{w.masterKeyLast4}
