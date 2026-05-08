@@ -15,8 +15,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DateTimePicker } from "./datetime-picker";
 import { trpc } from "@/lib/trpc-client";
 import type { SubKeyPublic } from "@/server/trpc/routers/subKey";
+
+const ANY = "__any__";
 
 type Props = {
   workspaceId: string;
@@ -195,35 +206,40 @@ export function AuditLogViewer({ workspaceId, workspaceName, subKeys }: Props) {
         <aside className="grid h-fit gap-3 rounded-md border p-4">
           <h2 className="text-sm font-semibold">Filters</h2>
           <FilterField label="From" htmlFor="from">
-            <Input
+            <DateTimePicker
               id="from"
-              type="datetime-local"
               value={draft.from}
-              onChange={(e) => setDraft({ ...draft, from: e.target.value })}
+              onChange={(next) => setDraft({ ...draft, from: next })}
+              placeholder="Any time"
             />
           </FilterField>
           <FilterField label="To" htmlFor="to">
-            <Input
+            <DateTimePicker
               id="to"
-              type="datetime-local"
               value={draft.to}
-              onChange={(e) => setDraft({ ...draft, to: e.target.value })}
+              onChange={(next) => setDraft({ ...draft, to: next })}
+              placeholder="Any time"
             />
           </FilterField>
           <FilterField label="Sub-key" htmlFor="subKey">
-            <select
-              id="subKey"
-              className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-              value={draft.subKeyId}
-              onChange={(e) => setDraft({ ...draft, subKeyId: e.target.value })}
+            <Select
+              value={draft.subKeyId === "" ? ANY : draft.subKeyId}
+              onValueChange={(v) => setDraft({ ...draft, subKeyId: v === ANY ? "" : v })}
             >
-              <option value="">Any sub-key</option>
-              {subKeys.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.label} ({k.last4})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="subKey">
+                <SelectValue placeholder="Any sub-key" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value={ANY}>Any sub-key</SelectItem>
+                  {subKeys.map((k) => (
+                    <SelectItem key={k.id} value={k.id}>
+                      {k.label} ({k.last4})
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </FilterField>
           <div className="grid grid-cols-2 gap-2">
             <FilterField label="Status ≥" htmlFor="statusMin">
@@ -248,18 +264,23 @@ export function AuditLogViewer({ workspaceId, workspaceName, subKeys }: Props) {
             </FilterField>
           </div>
           <FilterField label="Deny reason" htmlFor="denyReason">
-            <select
-              id="denyReason"
-              className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-              value={draft.denyReason}
-              onChange={(e) => setDraft({ ...draft, denyReason: e.target.value })}
+            <Select
+              value={draft.denyReason === "" ? ANY : draft.denyReason}
+              onValueChange={(v) => setDraft({ ...draft, denyReason: v === ANY ? "" : v })}
             >
-              {DENY_REASON_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="denyReason">
+                <SelectValue placeholder="Any" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {DENY_REASON_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value === "" ? ANY : o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </FilterField>
           <FilterField label="Path contains" htmlFor="pathContains">
             <Input
