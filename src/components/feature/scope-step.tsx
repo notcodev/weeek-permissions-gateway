@@ -41,12 +41,13 @@ export function ScopeStep({ workspaceId }: Props) {
   const selectedForBoards = projectsAll ? undefined : scopeProjects;
   const onlyOneProject =
     selectedForBoards && selectedForBoards.length === 1 ? selectedForBoards[0] : undefined;
+  const boardsEnabled = projectsAll || (selectedForBoards?.length ?? 0) >= 1;
   const boardsQ = trpc.weeekDirectory.boards.useQuery(
     {
       workspaceId,
       ...(onlyOneProject ? { projectId: onlyOneProject } : {}),
     },
-    { enabled: projectsAll || (selectedForBoards?.length ?? 0) >= 1 },
+    { enabled: boardsEnabled },
   );
 
   const projects = projectsQ.data;
@@ -78,6 +79,8 @@ export function ScopeStep({ workspaceId }: Props) {
   }
 
   function toggleProject(id: string, checked: boolean): void {
+    // When "All" is active and user clicks a specific project,
+    // auto-switch to specific mode with just that project.
     const current = projectsAll ? [] : scopeProjects.filter((s) => s !== ALL);
     setProjects(checked ? [...current, id] : current.filter((x) => x !== id));
   }
@@ -87,6 +90,7 @@ export function ScopeStep({ workspaceId }: Props) {
   }
 
   function toggleBoard(id: string, checked: boolean): void {
+    // Same as above: clicking a specific board auto-exits "All boards" mode.
     const current = boardsAll ? [] : scopeBoards.filter((s) => s !== ALL);
     setBoards(checked ? [...current, id] : current.filter((x) => x !== id));
   }
@@ -96,13 +100,15 @@ export function ScopeStep({ workspaceId }: Props) {
   return (
     <FieldGroup>
       <FieldDescription>
-        Limit which projects and boards this sub-key can touch. Default is everything.
+        Limit which projects and boards this sub-key can access. Default is all.
       </FieldDescription>
 
-      <FieldSet data-invalid={!!errors.scopeProjects || undefined}>
-        <div className="flex items-center justify-between">
+      <div className="grid grid-cols-2 gap-4">
+        {/* ── Projects ─────────────────────────────────── */}
+        <FieldSet data-invalid={!!errors.scopeProjects || undefined}>
           <FieldLegend variant="label">Projects</FieldLegend>
-          <Field orientation="horizontal" className="w-auto">
+
+          <Field orientation="horizontal" className="py-0.5">
             <Checkbox
               id="sk-projects-all"
               checked={projectsAll}
@@ -112,48 +118,49 @@ export function ScopeStep({ workspaceId }: Props) {
               All projects
             </FieldLabel>
           </Field>
-        </div>
-        <Input
-          placeholder="Filter projects…"
-          value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
-          disabled={projectsAll}
-        />
-        <div className="max-h-32 overflow-auto rounded-md border p-2">
-          {projectsQ.isLoading ? (
-            <p className="text-muted-foreground text-xs">Loading…</p>
-          ) : projectsQ.error ? (
-            <p className="text-destructive text-xs">{projectsQ.error.message}</p>
-          ) : filteredProjects.length === 0 ? (
-            <p className="text-muted-foreground text-xs">No projects.</p>
-          ) : (
-            filteredProjects.map((p) => {
-              const id = String(p.id);
-              const inputId = `sk-project-${id}`;
-              const checked = projectsAll || scopeProjects.includes(id);
-              return (
-                <Field key={id} orientation="horizontal" className="py-0.5">
-                  <Checkbox
-                    id={inputId}
-                    checked={checked}
-                    disabled={projectsAll}
-                    onCheckedChange={(c) => toggleProject(id, c === true)}
-                  />
-                  <FieldLabel htmlFor={inputId} className="font-normal">
-                    {p.name}
-                  </FieldLabel>
-                </Field>
-              );
-            })
-          )}
-        </div>
-        <FieldError>{errors.scopeProjects?.message}</FieldError>
-      </FieldSet>
 
-      <FieldSet data-invalid={!!errors.scopeBoards || undefined}>
-        <div className="flex items-center justify-between">
+          <Input
+            placeholder="Filter projects…"
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+          />
+
+          <div className="flex max-h-36 flex-col gap-0.5 overflow-auto rounded-md border p-2">
+            {projectsQ.isLoading ? (
+              <p className="text-muted-foreground text-xs">Loading…</p>
+            ) : projectsQ.error ? (
+              <p className="text-destructive text-xs">{projectsQ.error.message}</p>
+            ) : filteredProjects.length === 0 ? (
+              <p className="text-muted-foreground text-xs">No projects.</p>
+            ) : (
+              filteredProjects.map((p) => {
+                const id = String(p.id);
+                const inputId = `sk-project-${id}`;
+                const checked = projectsAll || scopeProjects.includes(id);
+                return (
+                  <Field key={id} orientation="horizontal" className="py-0.5">
+                    <Checkbox
+                      id={inputId}
+                      checked={checked}
+                      onCheckedChange={(c) => toggleProject(id, c === true)}
+                    />
+                    <FieldLabel htmlFor={inputId} className="font-normal">
+                      {p.name}
+                    </FieldLabel>
+                  </Field>
+                );
+              })
+            )}
+          </div>
+
+          <FieldError>{errors.scopeProjects?.message}</FieldError>
+        </FieldSet>
+
+        {/* ── Boards ───────────────────────────────────── */}
+        <FieldSet data-invalid={!!errors.scopeBoards || undefined}>
           <FieldLegend variant="label">Boards</FieldLegend>
-          <Field orientation="horizontal" className="w-auto">
+
+          <Field orientation="horizontal" className="py-0.5">
             <Checkbox
               id="sk-boards-all"
               checked={boardsAll}
@@ -163,45 +170,47 @@ export function ScopeStep({ workspaceId }: Props) {
               All boards
             </FieldLabel>
           </Field>
-        </div>
-        <Input
-          placeholder="Filter boards…"
-          value={boardFilter}
-          onChange={(e) => setBoardFilter(e.target.value)}
-          disabled={boardsAll}
-        />
-        <div className="max-h-32 overflow-auto rounded-md border p-2">
-          {!projectsAll && scopeProjects.length === 0 ? (
-            <p className="text-muted-foreground text-xs">Pick a project to load boards.</p>
-          ) : boardsQ.isLoading ? (
-            <p className="text-muted-foreground text-xs">Loading…</p>
-          ) : boardsQ.error ? (
-            <p className="text-destructive text-xs">{boardsQ.error.message}</p>
-          ) : filteredBoards.length === 0 ? (
-            <p className="text-muted-foreground text-xs">No boards.</p>
-          ) : (
-            filteredBoards.map((b) => {
-              const id = String(b.id);
-              const inputId = `sk-board-${id}`;
-              const checked = boardsAll || scopeBoards.includes(id);
-              return (
-                <Field key={id} orientation="horizontal" className="py-0.5">
-                  <Checkbox
-                    id={inputId}
-                    checked={checked}
-                    disabled={boardsAll}
-                    onCheckedChange={(c) => toggleBoard(id, c === true)}
-                  />
-                  <FieldLabel htmlFor={inputId} className="font-normal">
-                    {b.name}
-                  </FieldLabel>
-                </Field>
-              );
-            })
-          )}
-        </div>
-        <FieldError>{errors.scopeBoards?.message}</FieldError>
-      </FieldSet>
+
+          <Input
+            placeholder="Filter boards…"
+            value={boardFilter}
+            onChange={(e) => setBoardFilter(e.target.value)}
+            disabled={!boardsEnabled}
+          />
+
+          <div className="flex max-h-36 flex-col gap-0.5 overflow-auto rounded-md border p-2">
+            {!boardsEnabled ? (
+              <p className="text-muted-foreground text-xs">Pick a project first.</p>
+            ) : boardsQ.isLoading ? (
+              <p className="text-muted-foreground text-xs">Loading…</p>
+            ) : boardsQ.error ? (
+              <p className="text-destructive text-xs">{boardsQ.error.message}</p>
+            ) : filteredBoards.length === 0 ? (
+              <p className="text-muted-foreground text-xs">No boards.</p>
+            ) : (
+              filteredBoards.map((b) => {
+                const id = String(b.id);
+                const inputId = `sk-board-${id}`;
+                const checked = boardsAll || scopeBoards.includes(id);
+                return (
+                  <Field key={id} orientation="horizontal" className="py-0.5">
+                    <Checkbox
+                      id={inputId}
+                      checked={checked}
+                      onCheckedChange={(c) => toggleBoard(id, c === true)}
+                    />
+                    <FieldLabel htmlFor={inputId} className="font-normal">
+                      {b.name}
+                    </FieldLabel>
+                  </Field>
+                );
+              })
+            )}
+          </div>
+
+          <FieldError>{errors.scopeBoards?.message}</FieldError>
+        </FieldSet>
+      </div>
     </FieldGroup>
   );
 }

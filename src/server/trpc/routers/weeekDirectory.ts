@@ -47,6 +47,10 @@ const boardsInput = z.object({
   workspaceId: z.string().min(1),
   projectId: z.string().min(1).optional(),
 });
+const boardsManyInput = z.object({
+  workspaceId: z.string().min(1),
+  projectIds: z.array(z.string().min(1)).min(1),
+});
 const membersInput = z.object({ workspaceId: z.string().min(1) });
 
 export const weeekDirectoryRouter = router({
@@ -59,6 +63,18 @@ export const weeekDirectoryRouter = router({
     const masterKey = await loadMasterKey(input.workspaceId, ctx.session);
     const cacheKey = `boards:${input.workspaceId}:${input.projectId ?? "*"}`;
     return getOrFetch(cacheKey, TTL_MS, () => fetchBoards(masterKey, input.projectId));
+  }),
+
+  boardsForProjects: protectedProcedure.input(boardsManyInput).query(async ({ ctx, input }) => {
+    const masterKey = await loadMasterKey(input.workspaceId, ctx.session);
+    const results = await Promise.all(
+      input.projectIds.map((pid) =>
+        getOrFetch(`boards:${input.workspaceId}:${pid}`, TTL_MS, () =>
+          fetchBoards(masterKey, pid),
+        ),
+      ),
+    );
+    return results.flat();
   }),
 
   members: protectedProcedure.input(membersInput).query(async ({ ctx, input }) => {

@@ -17,14 +17,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { SubKeyRevealModal } from "./sub-key-reveal-modal";
-import { ScopeStep } from "./scope-step";
+import { ProjectsStep } from "./projects-step";
+import { BoardsStep } from "./boards-step";
 import { IdentityStep } from "./identity-step";
 import { VerbsStep } from "./verbs-step";
 import { VERB_CATALOG } from "@/server/verbs";
@@ -38,7 +34,7 @@ type Props = {
   trigger: ReactNode;
 };
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 const wizardSchema = z.object({
   label: z.string().trim().min(1, "Label is required").max(80),
@@ -69,9 +65,10 @@ const DEFAULT_VALUES: WizardForm = {
 
 const STEP_FIELDS: Record<Step, ReadonlyArray<keyof WizardForm>> = {
   1: ["label"],
-  2: ["scopeProjects", "scopeBoards"],
-  3: ["verbs"],
-  4: [],
+  2: ["scopeProjects"],
+  3: ["scopeBoards"],
+  4: ["verbs"],
+  5: [],
 };
 
 export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
@@ -114,7 +111,7 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
   }
 
   function back(): void {
-    setStep(((step - 1) || 1) as Step);
+    setStep(Math.max(1, step - 1) as Step);
   }
 
   function previewPolicy(values: WizardForm): string {
@@ -135,7 +132,7 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
   }
 
   function onSubmit(values: WizardForm): void {
-    if (step !== 4) return;
+    if (step !== 5) return;
     createMutation.mutate({
       workspaceId,
       label: values.label.trim(),
@@ -164,14 +161,16 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
           <DialogHeader>
             <DialogTitle>Issue a sub-key</DialogTitle>
             <DialogDescription>
-              Step {step} of 4:{" "}
+              Step {step} of 5:{" "}
               {step === 1
                 ? "Identity"
                 : step === 2
-                  ? "Scope"
+                  ? "Projects"
                   : step === 3
-                    ? "Verbs"
-                    : "Review"}
+                    ? "Boards"
+                    : step === 4
+                      ? "Verbs"
+                      : "Review"}
             </DialogDescription>
           </DialogHeader>
 
@@ -189,11 +188,13 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
             <form onSubmit={(e) => e.preventDefault()} noValidate>
               {step === 1 ? <IdentityStep workspaceId={workspaceId} /> : null}
 
-              {step === 2 ? <ScopeStep workspaceId={workspaceId} /> : null}
+              {step === 2 ? <ProjectsStep workspaceId={workspaceId} /> : null}
 
-              {step === 3 ? <VerbsStep /> : null}
+              {step === 3 ? <BoardsStep workspaceId={workspaceId} /> : null}
 
-              {step === 4 ? (
+              {step === 4 ? <VerbsStep /> : null}
+
+              {step === 5 ? (
                 <FieldGroup>
                   <Field>
                     <FieldLabel asChild>
@@ -208,45 +209,44 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
                   </Field>
                 </FieldGroup>
               ) : null}
-
-              <DialogFooter className="justify-between sm:justify-between">
-                {step > 1 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={back}
-                    disabled={createMutation.isPending}
-                  >
-                    Back
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      reset();
-                      setOpen(false);
-                    }}
-                    disabled={createMutation.isPending}
-                  >
-                    Cancel
-                  </Button>
-                )}
-                {step < 4 ? (
-                  <Button type="button" onClick={next}>
-                    Next
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={form.handleSubmit(onSubmit)}
-                    disabled={createMutation.isPending}
-                  >
-                    {createMutation.isPending ? "Issuing…" : "Create sub-key"}
-                  </Button>
-                )}
-              </DialogFooter>
             </form>
+            <DialogFooter className="justify-between sm:justify-between">
+              {step > 1 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={back}
+                  disabled={createMutation.isPending}
+                >
+                  Back
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    reset();
+                    setOpen(false);
+                  }}
+                  disabled={createMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              )}
+              {step < 5 ? (
+                <Button type="button" onClick={next}>
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={form.handleSubmit(onSubmit)}
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? "Issuing…" : "Create sub-key"}
+                </Button>
+              )}
+            </DialogFooter>
           </FormProvider>
         </DialogContent>
       </Dialog>
