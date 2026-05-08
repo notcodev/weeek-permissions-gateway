@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
+import { expandPreset } from "@/server/verbs";
 
 const WEEEK_BASE = "https://weeek.test/public/v1";
 const server = setupServer();
@@ -130,7 +131,7 @@ describe("subKey.create role gate honours owner context", () => {
       memberCaller.subKey.create({
         workspaceId: ws.id,
         label: "Should fail",
-        preset: "read-only",
+        verbs: [...expandPreset("read-only")],
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });

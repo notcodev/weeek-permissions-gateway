@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 import { eq } from "drizzle-orm";
+import { expandPreset } from "@/server/verbs";
 
 const WEEEK_BASE = "https://weeek.test/public/v1";
 const server = setupServer();
@@ -65,7 +66,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "CI bot",
-      preset: "read-only",
+      verbs: [...expandPreset("read-only")],
     });
     expect(created.rawKey.startsWith("wgw_")).toBe(true);
     expect(created.subKey.label).toBe("CI bot");
@@ -95,7 +96,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "Admin",
-      preset: "full-access",
+      verbs: [...expandPreset("full-access")],
     });
     const { VERB_CATALOG } = await import("@/server/verbs");
     expect([...created.subKey.verbs].sort()).toEqual([...VERB_CATALOG].sort());
@@ -110,7 +111,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "Hash verify",
-      preset: "read-only",
+      verbs: [...expandPreset("read-only")],
     });
     const { db } = await import("@/server/db/client");
     const { subKey } = await import("@/server/db/schema/subKey");
@@ -130,7 +131,7 @@ describe("subKey router", () => {
     const callerB = await makeCaller(uidB);
 
     await expect(
-      callerB.subKey.create({ workspaceId: wsAId, label: "Steal", preset: "read-only" }),
+      callerB.subKey.create({ workspaceId: wsAId, label: "Steal", verbs: [...expandPreset("read-only")] }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
@@ -143,7 +144,7 @@ describe("subKey router", () => {
     const callerA = await makeCaller(uidA);
     const callerB = await makeCaller(uidB);
 
-    await callerA.subKey.create({ workspaceId: wsAId, label: "A's key", preset: "read-only" });
+    await callerA.subKey.create({ workspaceId: wsAId, label: "A's key", verbs: [...expandPreset("read-only")] });
     await expect(callerB.subKey.listForWorkspace({ workspaceId: wsAId })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
@@ -158,7 +159,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "Revoke me",
-      preset: "task-automator",
+      verbs: [...expandPreset("task-automator")],
     });
     const first = await caller.subKey.revoke({ id: created.subKey.id });
     expect(first.ok).toBe(true);
@@ -183,7 +184,7 @@ describe("subKey router", () => {
     const created = await callerA.subKey.create({
       workspaceId: wsAId,
       label: "A's key",
-      preset: "read-only",
+      verbs: [...expandPreset("read-only")],
     });
     await expect(callerB.subKey.revoke({ id: created.subKey.id })).rejects.toMatchObject({
       code: "NOT_FOUND",
@@ -199,7 +200,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "Cascade me",
-      preset: "read-only",
+      verbs: [...expandPreset("read-only")],
     });
 
     await caller.workspace.remove({ id: wsId });
@@ -219,7 +220,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "Gettable",
-      preset: "read-only",
+      verbs: [...expandPreset("read-only")],
     });
     const got = await caller.subKey.get({ id: created.subKey.id });
     expect(got.id).toBe(created.subKey.id);
@@ -236,7 +237,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "scoped",
-      preset: "read-only",
+      verbs: [...expandPreset("read-only")],
       scopeProjects: ["p1", "p2"],
       scopeBoards: ["b1"],
     });
@@ -252,7 +253,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "no scope",
-      preset: "read-only",
+      verbs: [...expandPreset("read-only")],
     });
     expect(created.subKey.scopeProjects).toEqual(["*"]);
     expect(created.subKey.scopeBoards).toEqual(["*"]);
@@ -267,7 +268,7 @@ describe("subKey router", () => {
       caller.subKey.create({
         workspaceId: wsId,
         label: "empty",
-        preset: "read-only",
+        verbs: [...expandPreset("read-only")],
         scopeProjects: [],
         scopeBoards: ["*"],
       }),
@@ -283,7 +284,7 @@ describe("subKey router", () => {
       caller.subKey.create({
         workspaceId: wsId,
         label: "empty b",
-        preset: "read-only",
+        verbs: [...expandPreset("read-only")],
         scopeProjects: ["*"],
         scopeBoards: [],
       }),
@@ -298,7 +299,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "bound",
-      preset: "task-automator",
+      verbs: [...expandPreset("task-automator")],
       boundWeeekUserId: "u-42",
       boundWeeekUserName: "Alice",
       visibilityBound: true,
@@ -318,7 +319,7 @@ describe("subKey router", () => {
     const created = await caller.subKey.create({
       workspaceId: wsId,
       label: "no bind",
-      preset: "read-only",
+      verbs: [...expandPreset("read-only")],
     });
     expect(created.subKey.boundWeeekUserId).toBeNull();
     expect(created.subKey.boundWeeekUserName).toBeNull();

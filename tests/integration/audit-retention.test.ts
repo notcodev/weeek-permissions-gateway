@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
+import { expandPreset } from "@/server/verbs";
 
 const WEEEK_BASE = "https://weeek.test/public/v1";
 const server = setupServer();
@@ -43,7 +44,7 @@ async function setupRows(opts: { ageDaysOld: number[]; ageDaysFresh: number[] })
   const sk = await caller.subKey.create({
     workspaceId: ws.id,
     label: "k",
-    preset: "read-only",
+    verbs: [...expandPreset("read-only")],
   });
 
   const now = Date.now();

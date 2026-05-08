@@ -161,7 +161,7 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
     createMutation.mutate({
       workspaceId,
       label: values.label.trim(),
-      preset: values.preset,
+      verbs: [...expandPreset(values.preset)],
       scopeProjects: [...values.scopeProjects],
       scopeBoards: [...values.scopeBoards],
       boundWeeekUserId: values.boundWeeekUserId,

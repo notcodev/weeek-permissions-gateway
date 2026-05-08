@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 import { eq } from "drizzle-orm";
+import { expandPreset } from "@/server/verbs";
 
 const WEEEK_BASE = "https://weeek.test/public/v1";
 const server = setupServer();
@@ -39,7 +40,7 @@ async function setup(preset: "read-only" | "task-automator" | "full-access") {
     name: "proxy ws",
     masterKey: `wk_master_${uid}_aaaaaaaaaaaaaaaa`,
   });
-  const sk = await caller.subKey.create({ workspaceId: ws.id, label: "k", preset });
+  const sk = await caller.subKey.create({ workspaceId: ws.id, label: "k", verbs: [...expandPreset(preset)] });
   return { uid, workspaceId: ws.id, rawKey: sk.rawKey, subKeyId: sk.subKey.id };
 }
 

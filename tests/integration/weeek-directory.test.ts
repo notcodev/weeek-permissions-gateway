@@ -47,7 +47,7 @@ describe("weeekDirectory router", () => {
     const seeded = await setup();
     let calls = 0;
     server.use(
-      http.get(`${WEEEK_BASE}/ws/projects`, ({ request }) => {
+      http.get(`${WEEEK_BASE}/tm/projects`, ({ request }) => {
         calls += 1;
         expect(request.headers.get("authorization")).toBe(
           `Bearer wk_dir_${seeded.uid}_aaaaaaaaaaaaaaaa`,
@@ -75,7 +75,7 @@ describe("weeekDirectory router", () => {
     _resetCacheForTests();
     const seeded = await setup();
     server.use(
-      http.get(`${WEEEK_BASE}/ws/boards`, ({ request }) => {
+      http.get(`${WEEEK_BASE}/tm/boards`, ({ request }) => {
         const url = new URL(request.url);
         return HttpResponse.json({
           boards: [{ id: "b1", name: `for-${url.searchParams.get("projectId")}` }],
@@ -95,7 +95,7 @@ describe("weeekDirectory router", () => {
     const seeded = await setup();
     let observedQuery: string | null = null;
     server.use(
-      http.get(`${WEEEK_BASE}/ws/boards`, ({ request }) => {
+      http.get(`${WEEEK_BASE}/tm/boards`, ({ request }) => {
         const url = new URL(request.url);
         observedQuery = url.search;
         return HttpResponse.json({ boards: [] });

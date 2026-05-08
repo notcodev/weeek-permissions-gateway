@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
+import { expandPreset } from "@/server/verbs";
 
 const WEEEK_BASE = "https://weeek.test/public/v1";
 const server = setupServer();
@@ -41,7 +42,7 @@ async function seedWorkspaceAndKey(userId: string) {
   const sk = await caller.subKey.create({
     workspaceId: ws.id,
     label: "auth test",
-    preset: "read-only",
+    verbs: [...expandPreset("read-only")],
   });
   return { workspaceId: ws.id, rawKey: sk.rawKey, subKeyId: sk.subKey.id };
 }

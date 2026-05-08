@@ -6,20 +6,22 @@ import { db } from "@/server/db/client";
 import { subKey } from "@/server/db/schema/subKey";
 import { weeekWorkspace } from "@/server/db/schema/workspace";
 import { generateRawSubKey, hashSubKey, RAW_KEY_PREFIX, subKeyLast4 } from "@/server/crypto/subKey";
-import { expandPreset, PRESET_KEYS } from "@/server/verbs";
+import { isVerb } from "@/server/verbs";
 import { assertWriteRole, resolveOwnerContext, type OwnerContext } from "../ownerContext";
 import { protectedProcedure, router } from "../init";
-
-const presetEnum = z.enum(PRESET_KEYS);
 
 const listInput = z.object({ workspaceId: z.string().min(1) });
 const scopeArrayInput = z
   .array(z.string().min(1))
   .min(1, "Must include at least one id, or '*' for wildcard");
+const verbsInput = z
+  .array(z.string().refine(isVerb, "Unknown verb"))
+  .min(1, "Pick at least one verb")
+  .max(50, "Too many verbs");
 const createInput = z.object({
   workspaceId: z.string().min(1),
   label: z.string().trim().min(1, "Label is required").max(80),
-  preset: presetEnum,
+  verbs: verbsInput,
   scopeProjects: scopeArrayInput.optional(),
   scopeBoards: scopeArrayInput.optional(),
   boundWeeekUserId: z.string().min(1).nullable().optional(),
@@ -121,7 +123,9 @@ export const subKeyRouter = router({
       const rawKey = generateRawSubKey();
       const hash = hashSubKey(rawKey);
       const last4 = subKeyLast4(rawKey);
-      const verbs = [...expandPreset(input.preset)];
+      // Deduplicate while preserving first-occurrence order; storage shape stays
+      // a string[] but we don't trust callers to pre-dedupe.
+      const verbs = Array.from(new Set(input.verbs));
 
       const id = createId();
       const now = new Date();
