@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  BookmarkIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
   KeyRoundIcon,
@@ -87,6 +88,14 @@ export function AppSidebar({ user, orgs, activeOrganizationId, workspaces }: Pro
                 <Link href="/dashboard">
                   <LayoutDashboardIcon />
                   <span>Dashboard</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname === "/presets"} tooltip="Presets">
+                <Link href="/presets">
+                  <BookmarkIcon />
+                  <span>Presets</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
