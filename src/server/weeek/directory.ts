@@ -43,8 +43,47 @@ async function callWeeek<T>(path: string, masterKey: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export type WeeekProjectRow = { id: number | string; name: string };
-export type WeeekBoardRow = { id: number | string; name: string; projectId?: number | string };
+// Row shapes mirror the live Weeek public API as exposed at
+// https://api.weeek.net/public/v1 (OpenAPI dump at developers.weeek.net).
+// Only fields used downstream are required; everything else is reserved as
+// optional in case future callers need it.
+
+/** GET /tm/projects → `{ success, projects: Project[] }` */
+export type WeeekProjectRow = {
+  id: number;
+  name: string;
+  description?: string | null;
+  color?: string;
+  status?: 1 | 2;
+  isPrivate?: boolean;
+  portfolioId?: number | null;
+  team?: string[];
+  logoLink?: string | null;
+};
+
+/** GET /tm/boards → `{ success, boards: Board[] }`. projectId is required per spec. */
+export type WeeekBoardRow = {
+  id: number;
+  name: string;
+  projectId: number;
+  isPrivate?: boolean;
+};
+
+/**
+ * GET /ws/members → `{ success, members: User[] }`. Note the public User
+ * schema has NO `name` field — display label must be composed from
+ * firstName + lastName (or fall back to email).
+ */
+export type WeeekMemberRow = {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  middleName: string | null;
+  logo: string | null;
+  position: string | null;
+  timeZone: string;
+};
 
 function unwrap<T>(env: unknown, keys: readonly string[]): T[] {
   if (Array.isArray(env)) return env as T[];
@@ -59,11 +98,9 @@ function unwrap<T>(env: unknown, keys: readonly string[]): T[] {
 }
 
 export async function fetchProjects(masterKey: string): Promise<WeeekProjectRow[]> {
-  const env = await callWeeek<unknown>("/ws/projects", masterKey);
+  const env = await callWeeek<unknown>("/tm/projects", masterKey);
   return unwrap<WeeekProjectRow>(env, ["projects", "data"]);
 }
-
-export type WeeekMemberRow = { id: number | string; name: string; email?: string };
 
 export async function fetchMembers(masterKey: string): Promise<WeeekMemberRow[]> {
   const env = await callWeeek<unknown>("/ws/members", masterKey);
@@ -74,9 +111,11 @@ export async function fetchBoards(
   masterKey: string,
   projectId?: string,
 ): Promise<WeeekBoardRow[]> {
+  // The wire spec types projectId as integer, but URL query strings are
+  // always serialized to text — passing the string form here is identical.
   const path = projectId
-    ? `/ws/boards?projectId=${encodeURIComponent(projectId)}`
-    : `/ws/boards`;
+    ? `/tm/boards?projectId=${encodeURIComponent(projectId)}`
+    : `/tm/boards`;
   const env = await callWeeek<unknown>(path, masterKey);
   return unwrap<WeeekBoardRow>(env, ["boards", "data"]);
 }
