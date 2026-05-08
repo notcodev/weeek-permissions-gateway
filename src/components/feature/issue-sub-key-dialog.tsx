@@ -155,6 +155,9 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
   }
 
   function onSubmit(values: WizardForm): void {
+    // Guard against stray form submissions (e.g. an inner button without
+    // explicit type="button") on earlier steps — only step 4 issues the key.
+    if (step !== 4) return;
     createMutation.mutate({
       workspaceId,
       label: values.label.trim(),
