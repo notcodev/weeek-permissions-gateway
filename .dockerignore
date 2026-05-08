@@ -3,7 +3,13 @@ node_modules
 .git
 .env
 .env.local
+.env.*.local
 coverage
 tests
 docs
 .github
+.claude
+.vscode
+.idea
+*.log
+README.md
