@@ -4,10 +4,33 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Weekly run catches drift in transitive deps / base images.
+    - cron: "0 6 * * 1"
+
+# Cancel previous in-progress runs for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   static:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # `next build` evaluates route modules to collect page data; our db client
+    # and crypto helpers throw synchronously when their env vars are missing.
+    # Provide build-time placeholders — postgres-js connects lazily, so the
+    # bogus DATABASE_URL is never opened, and crypto is never invoked at build.
+    env:
+      DATABASE_URL: postgres://build:build@localhost:5432/build
+      MASTER_KEY_ENC_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      FINGERPRINT_HMAC_PEPPER: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      SUB_KEY_HMAC_PEPPER: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      BETTER_AUTH_SECRET: build-only-not-used-at-runtime
+      BETTER_AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -24,6 +47,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -33,5 +57,23 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # testcontainers needs Docker; ubuntu-latest already has it.
+      # testcontainers spins up postgres:16-alpine via the Docker engine
+      # that ubuntu-latest runners already have installed.
       - run: pnpm test
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: false
+          tags: wgw-ci:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
