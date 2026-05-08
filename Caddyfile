@@ -1,0 +1,40 @@
+{
+	email {$ACME_EMAIL}
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# HSTS: 1 year, include subdomains, preload-eligible.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		# Remove anything the upstream might leak.
+		-Server
+	}
+
+	# Strip the proxy's internal upstream-status header before it reaches the
+	# consumer (handler.ts already does this, defense in depth).
+	header /api/v1/* -X-Proxy-Upstream-Status
+
+	reverse_proxy app:3000 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Real-IP {remote_host}
+		# Keep upstream healthchecks pointed at /healthz for fast failover.
+		health_uri /healthz
+		health_interval 15s
+		health_timeout 3s
+		health_status 200
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
