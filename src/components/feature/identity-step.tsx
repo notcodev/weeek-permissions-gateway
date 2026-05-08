@@ -1,11 +1,13 @@
 "use client";
 
+import { Controller, useFormContext } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldTitle,
@@ -21,19 +23,10 @@ import {
 } from "@/components/ui/combobox";
 import { trpc } from "@/lib/trpc-client";
 import type { WeeekMemberRow } from "@/server/weeek/directory";
-
-export type IdentityState = {
-  label: string;
-  boundWeeekUserId: string | null;
-  boundWeeekUserName: string | null;
-  visibilityBound: boolean;
-  authorRewrite: boolean;
-};
+import type { WizardForm } from "./issue-sub-key-dialog";
 
 type Props = {
   workspaceId: string;
-  state: IdentityState;
-  onChange: (next: IdentityState) => void;
 };
 
 function displayName(m: WeeekMemberRow): string {
@@ -41,50 +34,47 @@ function displayName(m: WeeekMemberRow): string {
   return composed || m.email;
 }
 
-export function IdentityStep({ workspaceId, state, onChange }: Props) {
+export function IdentityStep({ workspaceId }: Props) {
+  const form = useFormContext<WizardForm>();
   const membersQ = trpc.weeekDirectory.members.useQuery({ workspaceId });
   const members = membersQ.data ?? [];
 
-  const selectedMember = state.boundWeeekUserId
-    ? (members.find((m) => String(m.id) === state.boundWeeekUserId) ?? null)
+  const errors = form.formState.errors;
+  const boundUserId = form.watch("boundWeeekUserId");
+  const memberPicked = boundUserId !== null;
+
+  const selectedMember = boundUserId
+    ? (members.find((m) => String(m.id) === boundUserId) ?? null)
     : null;
 
-  function setMember(m: WeeekMemberRow | null) {
+  function setMember(m: WeeekMemberRow | null): void {
     if (!m) {
-      onChange({
-        ...state,
-        boundWeeekUserId: null,
-        boundWeeekUserName: null,
-        visibilityBound: false,
-        authorRewrite: false,
-      });
+      form.setValue("boundWeeekUserId", null, { shouldDirty: true });
+      form.setValue("boundWeeekUserName", null, { shouldDirty: true });
+      form.setValue("visibilityBound", false, { shouldDirty: true });
+      form.setValue("authorRewrite", false, { shouldDirty: true });
       return;
     }
-    onChange({
-      ...state,
-      boundWeeekUserId: String(m.id),
-      boundWeeekUserName: displayName(m),
-    });
+    form.setValue("boundWeeekUserId", String(m.id), { shouldDirty: true });
+    form.setValue("boundWeeekUserName", displayName(m), { shouldDirty: true });
   }
-
-  const memberPicked = state.boundWeeekUserId !== null;
 
   return (
     <FieldGroup>
-      <Field>
+      <Field data-invalid={!!errors.label || undefined}>
         <FieldLabel htmlFor="sk-label">Label</FieldLabel>
         <Input
           id="sk-label"
-          value={state.label}
-          onChange={(e) => onChange({ ...state, label: e.target.value })}
           placeholder="CI bot"
           autoComplete="off"
           maxLength={80}
-          required
+          aria-invalid={!!errors.label || undefined}
+          {...form.register("label")}
         />
         <FieldDescription>
           Shown in the dashboard and in audit log; not embedded in the key itself.
         </FieldDescription>
+        <FieldError>{errors.label?.message}</FieldError>
       </Field>
 
       <Field>
@@ -125,13 +115,17 @@ export function IdentityStep({ workspaceId, state, onChange }: Props) {
 
       <FieldLabel htmlFor="sk-visibility-bound">
         <Field orientation="horizontal" data-disabled={!memberPicked || undefined}>
-          <Checkbox
-            id="sk-visibility-bound"
-            checked={state.visibilityBound}
-            disabled={!memberPicked}
-            onCheckedChange={(checked) =>
-              onChange({ ...state, visibilityBound: checked === true })
-            }
+          <Controller
+            control={form.control}
+            name="visibilityBound"
+            render={({ field }) => (
+              <Checkbox
+                id="sk-visibility-bound"
+                checked={field.value}
+                disabled={!memberPicked}
+                onCheckedChange={(checked) => field.onChange(checked === true)}
+              />
+            )}
           />
           <FieldContent>
             <FieldTitle>Filter visibility to this user</FieldTitle>
@@ -146,13 +140,17 @@ export function IdentityStep({ workspaceId, state, onChange }: Props) {
 
       <FieldLabel htmlFor="sk-author-rewrite">
         <Field orientation="horizontal" data-disabled={!memberPicked || undefined}>
-          <Checkbox
-            id="sk-author-rewrite"
-            checked={state.authorRewrite}
-            disabled={!memberPicked}
-            onCheckedChange={(checked) =>
-              onChange({ ...state, authorRewrite: checked === true })
-            }
+          <Controller
+            control={form.control}
+            name="authorRewrite"
+            render={({ field }) => (
+              <Checkbox
+                id="sk-author-rewrite"
+                checked={field.value}
+                disabled={!memberPicked}
+                onCheckedChange={(checked) => field.onChange(checked === true)}
+              />
+            )}
           />
           <FieldContent>
             <FieldTitle>Use as default author</FieldTitle>
