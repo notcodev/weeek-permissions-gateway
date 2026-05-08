@@ -1,8 +1,8 @@
 import { headers } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { SignOutButton } from "@/components/feature/sign-out-button";
-import { OwnerContextSwitcher } from "@/components/feature/owner-context-switcher";
+import { AppSidebar } from "@/components/feature/app-sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 import { auth } from "@/server/auth";
 import { appRouter } from "@/server/trpc/routers";
 
@@ -12,26 +12,34 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session) redirect("/sign-in");
 
   const caller = appRouter.createCaller({ session, headers: reqHeaders });
-  const orgs = await caller.org.list();
+  const [orgs, workspaces] = await Promise.all([caller.org.list(), caller.workspace.list()]);
   const activeOrganizationId =
     (session as { session?: { activeOrganizationId?: string | null } }).session
       ?.activeOrganizationId ?? null;
 
   return (
-    <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b px-6 py-3">
-        <Link href="/dashboard" className="font-semibold">
-          Weeek Permissions Gateway
-        </Link>
-        <div className="flex items-center gap-2">
-          <OwnerContextSwitcher
-            activeOrganizationId={activeOrganizationId}
-            orgs={orgs.map((o) => ({ id: o.id, name: o.name, slug: o.slug, role: o.role }))}
+    <SidebarProvider>
+      <AppSidebar
+        user={{
+          id: session.user.id,
+          name: session.user.name ?? null,
+          email: session.user.email,
+        }}
+        orgs={orgs.map((o) => ({ id: o.id, name: o.name, slug: o.slug, role: o.role }))}
+        activeOrganizationId={activeOrganizationId}
+        workspaces={workspaces}
+      />
+      <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator
+            orientation="vertical"
+            className="mr-2 data-vertical:h-4 data-vertical:self-auto"
           />
-          <SignOutButton />
-        </div>
-      </header>
-      <main className="px-6 py-8">{children}</main>
-    </div>
+          <span className="text-sm font-semibold">Weeek Permissions Gateway</span>
+        </header>
+        <main className="flex-1 px-6 py-6">{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
