@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -19,17 +19,17 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Field,
-  FieldContent,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldTitle,
 } from "@/components/ui/field";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SubKeyRevealModal } from "./sub-key-reveal-modal";
 import { ScopeStep } from "./scope-step";
 import { IdentityStep } from "./identity-step";
-import { expandPreset, type PresetKey } from "@/server/verbs";
+import { VerbsStep } from "./verbs-step";
+import { VERB_CATALOG } from "@/server/verbs";
+
+const VERB_NAMES: ReadonlyArray<string> = VERB_CATALOG;
 import type { SubKeyPublic } from "@/server/trpc/routers/subKey";
 
 type Props = {
@@ -48,7 +48,10 @@ const wizardSchema = z.object({
   authorRewrite: z.boolean(),
   scopeProjects: z.array(z.string()).min(1, "Pick at least one project (or 'all')"),
   scopeBoards: z.array(z.string()).min(1, "Pick at least one board (or 'all')"),
-  preset: z.enum(["read-only", "task-automator", "full-access"]),
+  verbs: z
+    .array(z.string())
+    .min(1, "Pick at least one verb")
+    .refine((arr) => arr.every((v) => VERB_NAMES.includes(v)), "One or more verbs are unknown"),
 });
 
 export type WizardForm = z.infer<typeof wizardSchema>;
@@ -61,37 +64,15 @@ const DEFAULT_VALUES: WizardForm = {
   authorRewrite: false,
   scopeProjects: ["*"],
   scopeBoards: ["*"],
-  preset: "read-only",
+  verbs: [],
 };
 
 const STEP_FIELDS: Record<Step, ReadonlyArray<keyof WizardForm>> = {
   1: ["label"],
   2: ["scopeProjects", "scopeBoards"],
-  3: ["preset"],
+  3: ["verbs"],
   4: [],
 };
-
-const PRESET_OPTIONS: ReadonlyArray<{
-  key: PresetKey;
-  title: string;
-  blurb: string;
-}> = [
-  {
-    key: "read-only",
-    title: "Read-only",
-    blurb: "Read every resource. No writes, no deletes.",
-  },
-  {
-    key: "task-automator",
-    title: "Task automator",
-    blurb: "Read everything; create/update tasks and comments; complete + move tasks; log time.",
-  },
-  {
-    key: "full-access",
-    title: "Full access",
-    blurb: "Every verb in the catalogue, including deletes.",
-  },
-];
 
 export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
   const router = useRouter();
@@ -140,14 +121,13 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
     return JSON.stringify(
       {
         label: values.label,
-        preset: values.preset,
         bound_weeek_user_id: values.boundWeeekUserId,
         bound_weeek_user_name: values.boundWeeekUserName,
         visibility_bound: values.visibilityBound,
         author_rewrite: values.authorRewrite,
         scope_projects: [...values.scopeProjects],
         scope_boards: [...values.scopeBoards],
-        verbs: [...expandPreset(values.preset)],
+        verbs: [...values.verbs],
       },
       null,
       2,
@@ -155,13 +135,11 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
   }
 
   function onSubmit(values: WizardForm): void {
-    // Guard against stray form submissions (e.g. an inner button without
-    // explicit type="button") on earlier steps — only step 4 issues the key.
     if (step !== 4) return;
     createMutation.mutate({
       workspaceId,
       label: values.label.trim(),
-      verbs: [...expandPreset(values.preset)],
+      verbs: [...values.verbs],
       scopeProjects: [...values.scopeProjects],
       scopeBoards: [...values.scopeBoards],
       boundWeeekUserId: values.boundWeeekUserId,
@@ -182,7 +160,7 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
         }}
       >
         <DialogTrigger asChild>{trigger}</DialogTrigger>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Issue a sub-key</DialogTitle>
             <DialogDescription>
@@ -200,8 +178,8 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
           <FormProvider {...form}>
             {/*
               Wizard does NOT submit through the <form> element. Multi-step
-              dialogs that wrap RadixUI primitives (RadioGroupItem, Combobox
-              triggers, Dialog close buttons) tend to auto-submit on stray
+              dialogs that wrap RadixUI primitives (Combobox triggers, Dialog
+              close buttons, Select triggers) tend to auto-submit on stray
               clicks because those inner buttons inherit the HTML default
               type="submit" inside a <form>. Swallow every native submit
               event here; the only path to the create mutation is the
@@ -213,36 +191,7 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
 
               {step === 2 ? <ScopeStep workspaceId={workspaceId} /> : null}
 
-              {step === 3 ? (
-                <Controller
-                  control={form.control}
-                  name="preset"
-                  render={({ field }) => (
-                    <FieldGroup>
-                      <FieldDescription>
-                        Pick a preset. Custom verb selection arrives in a later phase.
-                      </FieldDescription>
-                      <RadioGroup
-                        value={field.value}
-                        onValueChange={(v) => field.onChange(v as PresetKey)}
-                        className="grid gap-3"
-                      >
-                        {PRESET_OPTIONS.map((opt) => (
-                          <FieldLabel key={opt.key} htmlFor={`sk-preset-${opt.key}`}>
-                            <Field orientation="horizontal">
-                              <RadioGroupItem id={`sk-preset-${opt.key}`} value={opt.key} />
-                              <FieldContent>
-                                <FieldTitle>{opt.title}</FieldTitle>
-                                <FieldDescription>{opt.blurb}</FieldDescription>
-                              </FieldContent>
-                            </Field>
-                          </FieldLabel>
-                        ))}
-                      </RadioGroup>
-                    </FieldGroup>
-                  )}
-                />
-              ) : null}
+              {step === 3 ? <VerbsStep /> : null}
 
               {step === 4 ? (
                 <FieldGroup>
