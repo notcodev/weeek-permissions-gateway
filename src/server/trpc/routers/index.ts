@@ -5,6 +5,7 @@ import { subKeyRouter } from "./subKey";
 import { weeekDirectoryRouter } from "./weeekDirectory";
 import { auditRouter } from "./audit";
 import { orgRouter } from "./org";
+import { verbPresetRouter } from "./verbPreset";
 
 export const appRouter = router({
   me: meRouter,
@@ -13,5 +14,6 @@ export const appRouter = router({
   weeekDirectory: weeekDirectoryRouter,
   audit: auditRouter,
   org: orgRouter,
+  verbPreset: verbPresetRouter,
 });
 export type AppRouter = typeof appRouter;
