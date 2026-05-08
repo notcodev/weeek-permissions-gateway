@@ -130,4 +130,81 @@ describe("weeekDirectory router", () => {
       b.caller.weeekDirectory.members({ workspaceId: a.workspaceId }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
+
+  test("boardsForProjects: merges boards from all requested projects", async () => {
+    const { _resetCacheForTests } = await import("@/server/weeek/cache");
+    _resetCacheForTests();
+    const seeded = await setup();
+    server.use(
+      http.get(`${WEEEK_BASE}/tm/boards`, ({ request }) => {
+        const pid = new URL(request.url).searchParams.get("projectId");
+        return HttpResponse.json({
+          boards: [{ id: `b-${pid}`, name: `Board of ${pid}`, projectId: Number(pid) }],
+        });
+      }),
+    );
+    const out = await seeded.caller.weeekDirectory.boardsForProjects({
+      workspaceId: seeded.workspaceId,
+      projectIds: ["10", "20"],
+    });
+    expect(out).toHaveLength(2);
+    expect(out.map((b) => b.id)).toEqual(expect.arrayContaining(["b-10", "b-20"]));
+  });
+
+  test("boardsForProjects: caches per-project (each project fetched once)", async () => {
+    const { _resetCacheForTests } = await import("@/server/weeek/cache");
+    _resetCacheForTests();
+    const seeded = await setup();
+    const callsPerProject: Record<string, number> = {};
+    server.use(
+      http.get(`${WEEEK_BASE}/tm/boards`, ({ request }) => {
+        const pid = new URL(request.url).searchParams.get("projectId") ?? "?";
+        callsPerProject[pid] = (callsPerProject[pid] ?? 0) + 1;
+        return HttpResponse.json({ boards: [] });
+      }),
+    );
+    await seeded.caller.weeekDirectory.boardsForProjects({
+      workspaceId: seeded.workspaceId,
+      projectIds: ["10", "20"],
+    });
+    await seeded.caller.weeekDirectory.boardsForProjects({
+      workspaceId: seeded.workspaceId,
+      projectIds: ["10", "20"],
+    });
+    expect(callsPerProject["10"]).toBe(1);
+    expect(callsPerProject["20"]).toBe(1);
+  });
+
+  test("boardsForProjects: shares cache with boards endpoint", async () => {
+    const { _resetCacheForTests } = await import("@/server/weeek/cache");
+    _resetCacheForTests();
+    const seeded = await setup();
+    let calls = 0;
+    server.use(
+      http.get(`${WEEEK_BASE}/tm/boards`, () => {
+        calls += 1;
+        return HttpResponse.json({ boards: [{ id: "b1", name: "B1", projectId: 10 }] });
+      }),
+    );
+    await seeded.caller.weeekDirectory.boards({
+      workspaceId: seeded.workspaceId,
+      projectId: "10",
+    });
+    await seeded.caller.weeekDirectory.boardsForProjects({
+      workspaceId: seeded.workspaceId,
+      projectIds: ["10"],
+    });
+    expect(calls).toBe(1);
+  });
+
+  test("boardsForProjects: NOT_FOUND for someone else's workspace", async () => {
+    const a = await setup();
+    const b = await setup();
+    await expect(
+      b.caller.weeekDirectory.boardsForProjects({
+        workspaceId: a.workspaceId,
+        projectIds: ["10"],
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
 });
