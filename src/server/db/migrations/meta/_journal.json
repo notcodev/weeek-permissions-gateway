@@ -43,6 +43,13 @@
       "when": 1778194837015,
       "tag": "0005_breezy_vengeance",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778206333865,
+      "tag": "0006_overjoyed_doorman",
+      "breakpoints": true
     }
   ]
 }
