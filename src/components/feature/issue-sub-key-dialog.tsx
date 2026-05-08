@@ -198,7 +198,17 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
           </DialogHeader>
 
           <FormProvider {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
+            {/*
+              Wizard does NOT submit through the <form> element. Multi-step
+              dialogs that wrap RadixUI primitives (RadioGroupItem, Combobox
+              triggers, Dialog close buttons) tend to auto-submit on stray
+              clicks because those inner buttons inherit the HTML default
+              type="submit" inside a <form>. Swallow every native submit
+              event here; the only path to the create mutation is the
+              "Create sub-key" button's onClick → form.handleSubmit on
+              step 4.
+            */}
+            <form onSubmit={(e) => e.preventDefault()} noValidate>
               {step === 1 ? <IdentityStep workspaceId={workspaceId} /> : null}
 
               {step === 2 ? <ScopeStep workspaceId={workspaceId} /> : null}
@@ -278,7 +288,11 @@ export function IssueSubKeyDialog({ workspaceId, onIssued, trigger }: Props) {
                     Next
                   </Button>
                 ) : (
-                  <Button type="submit" disabled={createMutation.isPending}>
+                  <Button
+                    type="button"
+                    onClick={form.handleSubmit(onSubmit)}
+                    disabled={createMutation.isPending}
+                  >
                     {createMutation.isPending ? "Issuing…" : "Create sub-key"}
                   </Button>
                 )}
