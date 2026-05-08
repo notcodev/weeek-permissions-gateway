@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/feature/app-sidebar";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
+import { AppHeader } from "@/components/feature/app-header";
+import { HeaderActionsProvider } from "@/components/feature/header-actions-context";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/server/auth";
 import { appRouter } from "@/server/trpc/routers";
 
@@ -30,15 +31,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         workspaces={workspaces}
       />
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-          />
-          <span className="text-sm font-semibold">Weeek Permissions Gateway</span>
-        </header>
-        <main className="flex-1 px-6 py-6">{children}</main>
+        <HeaderActionsProvider>
+          <AppHeader workspaces={workspaces} />
+          <main className="flex-1 px-6 py-6">{children}</main>
+        </HeaderActionsProvider>
       </SidebarInset>
     </SidebarProvider>
   );

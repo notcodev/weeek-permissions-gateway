@@ -68,13 +68,10 @@ export function PresetsManager({ initialPresets }: Props) {
 
   return (
     <section className="flex flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Presets</h1>
-        <p className="text-muted-foreground text-sm">
-          Reusable verb selections you can apply when issuing sub-keys. Built-in presets are not
-          shown here — they always exist alongside yours in the issue dialog.
-        </p>
-      </header>
+      <p className="text-muted-foreground text-sm">
+        Reusable verb selections you can apply when issuing sub-keys. Built-in presets are not
+        shown here — they always exist alongside yours in the issue dialog.
+      </p>
 
       {presets.length === 0 ? (
         <Card>

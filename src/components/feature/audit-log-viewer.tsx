@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DateTimePicker } from "./datetime-picker";
+import { HeaderActions } from "./header-actions-context";
 import { trpc } from "@/lib/trpc-client";
 import type { SubKeyPublic } from "@/server/trpc/routers/subKey";
 
@@ -157,15 +158,11 @@ export function AuditLogViewer({ workspaceId, workspaceName, subKeys }: Props) {
 
   return (
     <div className="grid gap-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Audit log</h1>
-          <p className="text-muted-foreground text-sm">{workspaceName}</p>
-        </div>
+      <HeaderActions>
         <Button variant="outline" onClick={resetFilters} disabled={searchQ.isFetching}>
           Reset filters
         </Button>
-      </header>
+      </HeaderActions>
 
       <Card>
         <CardHeader>

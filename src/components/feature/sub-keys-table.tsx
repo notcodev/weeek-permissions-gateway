@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { IssueSubKeyDialog } from "./issue-sub-key-dialog";
 import { RevokeSubKeyDialog } from "./revoke-sub-key-dialog";
+import { HeaderActions } from "./header-actions-context";
 import { presetForVerbs } from "@/server/verbs";
 import type { SubKeyPublic } from "@/server/trpc/routers/subKey";
 
@@ -56,22 +57,18 @@ export function SubKeysTable({ workspaceId, workspaceName, initialSubKeys }: Pro
 
   return (
     <section className="flex flex-col gap-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{workspaceName}</h1>
-          <p className="text-muted-foreground text-sm">Sub-keys issued from this workspace.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/workspaces/${workspaceId}/audit`}>View audit log</Link>
-          </Button>
-          <IssueSubKeyDialog
-            workspaceId={workspaceId}
-            onIssued={(k) => setKeys((curr) => [k, ...curr])}
-            trigger={<Button>Issue sub-key</Button>}
-          />
-        </div>
-      </header>
+      <HeaderActions>
+        <Button asChild variant="outline">
+          <Link href={`/workspaces/${workspaceId}/audit`}>View audit log</Link>
+        </Button>
+        <IssueSubKeyDialog
+          workspaceId={workspaceId}
+          onIssued={(k) => setKeys((curr) => [k, ...curr])}
+          trigger={<Button>Issue sub-key</Button>}
+        />
+      </HeaderActions>
+
+      <p className="text-muted-foreground text-sm">Sub-keys issued from this workspace.</p>
 
       {empty ? (
         <div className="rounded-md border border-dashed p-8 text-center">

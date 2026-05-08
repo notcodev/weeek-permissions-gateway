@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AddWorkspaceDialog } from "./add-workspace-dialog";
 import { RemoveWorkspaceDialog } from "./remove-workspace-dialog";
+import { HeaderActions } from "./header-actions-context";
 import type { WorkspacePublic } from "@/server/trpc/routers/workspace";
 
 type Props = {
@@ -44,18 +45,16 @@ export function WorkspacesTable({ initialWorkspaces }: Props) {
 
   return (
     <section className="flex flex-col gap-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Workspaces</h1>
-          <p className="text-muted-foreground text-sm">
-            Imported Weeek workspaces. Issue scoped sub-keys from each one.
-          </p>
-        </div>
+      <HeaderActions>
         <AddWorkspaceDialog
           onCreated={(w) => setWorkspaces((curr) => [w, ...curr])}
           trigger={<Button>Add workspace</Button>}
         />
-      </header>
+      </HeaderActions>
+
+      <p className="text-muted-foreground text-sm">
+        Imported Weeek workspaces. Issue scoped sub-keys from each one.
+      </p>
 
       {empty ? (
         <div className="rounded-md border border-dashed p-8 text-center">
